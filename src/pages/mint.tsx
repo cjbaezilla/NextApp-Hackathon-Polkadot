@@ -153,6 +153,7 @@ const MintPage: NextPage = () => {
           address: contractAddress,
           abi: NFTContract.abi,
           functionName: 'mint',
+          args: [],
           value: mintPrice ? BigInt(mintPrice.toString()) : BigInt(0),
         });
       } else {

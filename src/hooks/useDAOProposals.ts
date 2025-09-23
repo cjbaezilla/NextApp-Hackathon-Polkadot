@@ -46,28 +46,16 @@ export const useDAOProposals = () => {
 
   // Función para obtener una propuesta específica por ID
   const getProposalById = (proposalId: number) => {
-    return useContractRead({
-      address: daoContractAddress,
-      abi: DAOContract.abi,
-      functionName: 'getProposal',
-      args: [BigInt(proposalId)],
-      query: {
-        enabled: proposalId >= 0,
-      },
-    });
+    // Esta función ya no usa hooks directamente, se debe usar useProposal en su lugar
+    console.warn('getProposalById está deprecado. Usa useProposal en su lugar.');
+    return null;
   };
 
   // Función para obtener el estado de una propuesta
   const getProposalStatus = (proposalId: number) => {
-    return useContractRead({
-      address: daoContractAddress,
-      abi: DAOContract.abi,
-      functionName: 'getProposalStatus',
-      args: [BigInt(proposalId)],
-      query: {
-        enabled: proposalId >= 0,
-      },
-    });
+    // Esta función ya no usa hooks directamente, se debe usar useProposal en su lugar
+    console.warn('getProposalStatus está deprecado. Usa useProposal en su lugar.');
+    return null;
   };
 
   return {

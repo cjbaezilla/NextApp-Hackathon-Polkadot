@@ -47,9 +47,35 @@ const hardhat = defineChain({
   testnet: true,
 });
 
+// Configuración de la red Sepolia
+const sepolia = defineChain({
+  id: 11155111,
+  name: 'Sepolia',
+  nativeCurrency: {
+    name: 'Sepolia Ether',
+    symbol: 'SEP',
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://gateway.tenderly.co/public/sepolia'],
+    },
+    public: {
+      http: ['https://gateway.tenderly.co/public/sepolia'],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: 'Etherscan',
+      url: 'https://sepolia.etherscan.io',
+    },
+  },
+  testnet: true,
+});
+
 export const config = getDefaultConfig({
   appName: 'DApp Polka',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'temp_project_id_for_development',
-  chains: [hardhat, polkadotHub],
+  chains: [hardhat, polkadotHub, sepolia],
   ssr: false, // Deshabilitado para exportación estática
 });

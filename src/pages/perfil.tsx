@@ -1,5 +1,6 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -234,10 +235,11 @@ const PerfilPage: NextPage = () => {
             {/* Imagen de portada */}
             <div className="relative h-48 md:h-64 rounded-lg overflow-hidden">
               {userInfo.coverImageLink ? (
-                <img
+                <Image
                   src={userInfo.coverImageLink}
                   alt={`Portada de ${userInfo.username}`}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';

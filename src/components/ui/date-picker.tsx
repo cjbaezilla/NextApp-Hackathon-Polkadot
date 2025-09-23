@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Calendar, Clock } from 'lucide-react';
 
 interface DatePickerProps {
@@ -25,23 +25,23 @@ const DatePicker: React.FC<DatePickerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Función para formatear fecha a DD-MM-YYYY
-  const formatDate = (date: Date): string => {
+  const formatDate = useCallback((date: Date): string => {
     const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
-  };
+  }, []);
 
   // Función para formatear fecha con hora a DD-MM-YYYY HH:MM
-  const formatDateTime = (date: Date, time: { hours: string, minutes: string }): string => {
+  const formatDateTime = useCallback((date: Date, time: { hours: string, minutes: string }): string => {
     const day = date.getDate().toString().padStart(2, '0');
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
     return `${day}-${month}-${year} ${time.hours}:${time.minutes}`;
-  };
+  }, []);
 
   // Función para parsear fecha desde DD-MM-YYYY
-  const parseDate = (dateStr: string): Date | null => {
+  const parseDate = useCallback((dateStr: string): Date | null => {
     const parts = dateStr.split('-');
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
@@ -53,10 +53,10 @@ const DatePicker: React.FC<DatePickerProps> = ({
       }
     }
     return null;
-  };
+  }, []);
 
   // Función para parsear fecha con hora desde DD-MM-YYYY HH:MM
-  const parseDateTime = (dateTimeStr: string): { date: Date | null, time: { hours: string, minutes: string } } => {
+  const parseDateTime = useCallback((dateTimeStr: string): { date: Date | null, time: { hours: string, minutes: string } } => {
     const [datePart, timePart] = dateTimeStr.split(' ');
     const date = parseDate(datePart);
     let time = { hours: '00', minutes: '00' };
@@ -69,7 +69,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
     }
     
     return { date, time };
-  };
+  }, [parseDate]);
 
   // Inicializar valores
   useEffect(() => {
@@ -105,7 +105,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
         setInputValue(formatDate(now));
       }
     }
-  }, [value, showTime]);
+  }, [value, showTime, parseDateTime, parseDate, formatDateTime, formatDate]);
 
   // Sincronizar inputValue con value prop solo cuando el componente no está enfocado
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Globe, ChevronDown, Moon, Sun, Menu, X, Home, Settings, Users, TrendingUp, Wallet, ExternalLink, Plus, Vote, UserPlus, User } from 'lucide-react';
+import { Globe, ChevronDown, Moon, Sun, Menu, X, Home, ExternalLink, Plus, Vote, UserPlus, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { useTheme } from '../hooks/useTheme';
@@ -22,11 +22,7 @@ const Navigation = () => {
     { icon: Plus, label: 'Mint NFT', href: '/mint' },
     { icon: UserPlus, label: 'Registro', href: '/registro' },
     { icon: User, label: 'Perfil', href: '/perfil' },
-    { icon: Vote, label: 'DAO', href: '/dao' },
-    { icon: TrendingUp, label: 'Analytics', href: '/analytics' },
-    { icon: Wallet, label: 'Wallet', href: '/wallet' },
-    { icon: Users, label: 'Comunidad', href: '/community' },
-    { icon: Settings, label: 'Configuración', href: '/settings' }
+    { icon: Vote, label: 'DAO', href: '/dao' }
   ];
 
   // Cerrar menú al hacer clic fuera
