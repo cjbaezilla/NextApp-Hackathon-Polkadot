@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import DatePicker from '@/components/ui/date-picker';
-import { ArrowLeft, FileText, Clock, User, Link as LinkIcon, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, FileText, Clock, User, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { useContractRead, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import ClientOnly from '@/components/ClientOnly';
 import { useRouter } from 'next/router';
@@ -71,7 +71,6 @@ const NuevaPropuestaPage: NextPage = () => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
 
   // Leer datos del contrato DAO
   const { data: minimumTokensToCreate, error: minTokensError, isLoading: minTokensLoading } = useContractRead({
@@ -200,11 +199,9 @@ const NuevaPropuestaPage: NextPage = () => {
   // Manejar éxito de la transacción
   useEffect(() => {
     if (isConfirmed) {
-      setSuccess(true);
       setIsSubmitting(false);
-      setTimeout(() => {
-        router.push('/dao');
-      }, 2000);
+      // Redirigir inmediatamente sin mostrar mensaje de éxito
+      router.push('/dao?proposalCreated=true');
     }
   }, [isConfirmed, router]);
 
@@ -305,6 +302,16 @@ const NuevaPropuestaPage: NextPage = () => {
                     <span className="text-sm font-bold text-foreground">
                       {isLoadingContractData ? 'Cargando...' : (minimumTokensToCreate ? Number(minimumTokensToCreate).toString() : '10')} NFTs
                     </span>
+                  </div>
+
+                  {/* Mensaje informativo sobre limitación de propuestas */}
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="w-4 h-4 text-blue-600" />
+                      <p className="text-xs text-blue-800 dark:text-blue-200">
+                        Puedes crear solo 1 propuesta cada 24 horas
+                      </p>
+                    </div>
                   </div>
 
                   {!isLoadingContractData && !canCreateProposal && (
@@ -411,16 +418,6 @@ const NuevaPropuestaPage: NextPage = () => {
                   </div>
                 )}
 
-                {success && (
-                  <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="w-4 h-4 text-green-600" />
-                      <p className="text-xs text-green-800 dark:text-green-200">
-                        ¡Propuesta creada exitosamente! Redirigiendo al DAO...
-                      </p>
-                    </div>
-                  </div>
-                )}
 
                 {/* Botones */}
                 <div className="flex space-x-3 pt-4">

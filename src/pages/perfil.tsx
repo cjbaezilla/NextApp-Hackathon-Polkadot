@@ -27,6 +27,7 @@ import ClientOnly from '@/components/ClientOnly';
 
 // Cargar ABI del contrato desde variable de entorno
 const UsersContract = require(process.env.NEXT_PUBLIC_USERS_CONTRACT_ABI_PATH!);
+const NFTContract = require(process.env.NEXT_PUBLIC_NFT_CONTRACT_ABI_PATH!);
 
 // Interfaz para los datos del usuario
 interface UserInfo {
@@ -48,18 +49,19 @@ const PerfilPage: NextPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Dirección del contrato desde variables de entorno
-  const contractAddress = process.env.NEXT_PUBLIC_USERS_CONTRACT_ADDRESS as `0x${string}`;
+  // Direcciones de los contratos desde variables de entorno
+  const usersContractAddress = process.env.NEXT_PUBLIC_USERS_CONTRACT_ADDRESS as `0x${string}`;
+  const nftContractAddress = process.env.NEXT_PUBLIC_NFT_CONTRACT_ADDRESS as `0x${string}`;
 
-  // Leer datos del contrato
+  // Leer datos del contrato de usuarios
   const { data: totalMembers } = useContractRead({
-    address: contractAddress,
+    address: usersContractAddress,
     abi: UsersContract.abi,
     functionName: 'getTotalMembers',
   });
 
   const { data: userRegistered } = useContractRead({
-    address: contractAddress,
+    address: usersContractAddress,
     abi: UsersContract.abi,
     functionName: 'isRegisteredUser',
     args: address ? [address] : ['0x0000000000000000000000000000000000000000'],
@@ -67,11 +69,19 @@ const PerfilPage: NextPage = () => {
 
   // Leer información del usuario actual
   const { data: userData, refetch: refetchUserInfo } = useContractRead({
-    address: contractAddress,
+    address: usersContractAddress,
     abi: UsersContract.abi,
     functionName: 'getUserInfo',
     args: address ? [address] : ['0x0000000000000000000000000000000000000000'],
   }) as { data: UserInfo | undefined; refetch: () => void };
+
+  // Leer balance de NFT del usuario
+  const { data: userNftBalance, refetch: refetchUserNftBalance } = useContractRead({
+    address: nftContractAddress,
+    abi: NFTContract.abi,
+    functionName: 'balanceOf',
+    args: address ? [address] : ['0x0000000000000000000000000000000000000000'],
+  });
 
   // Efecto para cargar datos del usuario
   useEffect(() => {
@@ -337,7 +347,13 @@ const PerfilPage: NextPage = () => {
                 <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center mx-auto mb-2">
                   <Award className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
-                <p className="text-2xl font-bold text-foreground">0</p>
+                <ClientOnly fallback={
+                  <p className="text-2xl font-bold text-foreground">0</p>
+                }>
+                  <p className="text-2xl font-bold text-foreground">
+                    {userNftBalance ? Number(userNftBalance).toString() : '0'}
+                  </p>
+                </ClientOnly>
                 <p className="text-sm text-muted-foreground">NFTs</p>
               </div>
             </div>
