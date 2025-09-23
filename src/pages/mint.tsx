@@ -8,7 +8,8 @@ import { Plus, Image as ImageIcon, User, Users, Coins, CheckCircle, AlertCircle,
 import { useState, useEffect, useCallback } from 'react';
 import { useContractRead, useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt, useWatchContractEvent } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
-import NFTContract from '@/contracts/NFTContract.json';
+// Cargar ABI del contrato desde variable de entorno
+const NFTContract = require(process.env.NEXT_PUBLIC_NFT_CONTRACT_ABI_PATH!);
 import ClientOnly from '@/components/ClientOnly';
 
 const MintPage: NextPage = () => {
@@ -85,7 +86,6 @@ const MintPage: NextPage = () => {
   // nextTokenId representa el próximo ID a acuñar, por lo que los acuñados son nextTokenId - 1
   const mintedCount = nextTokenId ? Number(nextTokenId) - 1 : 0;
 
-  // Obtener número de holders únicos usando la función del contrato
   const uniqueHoldersCount = Array.isArray(allNftHolders) ? allNftHolders.length : 0;
 
   // Función para refrescar todos los datos después del mint
@@ -168,15 +168,6 @@ const MintPage: NextPage = () => {
     } catch (error) {
       setMintError('Error al iniciar el proceso de minting');
     }
-  };
-
-  const nftCollection = {
-    name: 'PolkaPunks Collection',
-    description: 'Una colección única de NFTs en Polkadot',
-    price: mintPrice ? `${Number(mintPrice) / 1e18} PAS` : '1 PAS',
-    totalSupply: totalSupply ? Number(totalSupply) : 0,
-    minted: nextTokenId ? Number(nextTokenId) : 0,
-    image: '/api/placeholder/400/400'
   };
 
   const mainStats = [

@@ -1,5 +1,6 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -122,6 +123,12 @@ const pools = [
 ];
 
 const Home: NextPage = () => {
+  const router = useRouter();
+
+  const handleRegisterClick = () => {
+    router.push('/registro');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Head>
@@ -144,9 +151,9 @@ const Home: NextPage = () => {
               NFT & ERC20 en Polkadot
             </p>
           </div>
-          <Button className="text-xs px-3 py-2 h-auto">
+          <Button className="text-xs px-3 py-2 h-auto" onClick={handleRegisterClick}>
             <Plus className="w-3 h-3 mr-1" />
-            Nuevo Proyecto
+            Registrate
           </Button>
         </div>
 

@@ -1,0 +1,277 @@
+{
+    "_format": "hh3-artifact-1",
+    "contractName": "SimpleUserManager",
+    "sourceName": "contracts/SimpleUserManager.sol",
+    "abi": [
+      {
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "inputs": [],
+        "name": "UnauthorizedAccess",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "UserAlreadyExists",
+        "type": "error"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "UserNotRegistered",
+        "type": "error"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "UserInfoUpdated",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "UserRegistered",
+        "type": "event"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "UserRemoved",
+        "type": "event"
+      },
+      {
+        "inputs": [],
+        "name": "getAllUsers",
+        "outputs": [
+          {
+            "internalType": "address[]",
+            "name": "",
+            "type": "address[]"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "getTotalMembers",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "getUserInfo",
+        "outputs": [
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "joinTimestamp",
+                "type": "uint256"
+              },
+              {
+                "internalType": "string",
+                "name": "username",
+                "type": "string"
+              },
+              {
+                "internalType": "address",
+                "name": "userAddress",
+                "type": "address"
+              },
+              {
+                "internalType": "string",
+                "name": "email",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "twitterLink",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "githubLink",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "telegramLink",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "avatarLink",
+                "type": "string"
+              },
+              {
+                "internalType": "string",
+                "name": "coverImageLink",
+                "type": "string"
+              }
+            ],
+            "internalType": "struct SimpleUserManager.UserInfo",
+            "name": "",
+            "type": "tuple"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "isRegisteredUser",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "string",
+            "name": "_username",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_email",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_twitterLink",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_githubLink",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_telegramLink",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_avatarLink",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_coverImageLink",
+            "type": "string"
+          }
+        ],
+        "name": "registerUser",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "removeUser",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "string",
+            "name": "_email",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_twitterLink",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_githubLink",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_telegramLink",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_avatarLink",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "_coverImageLink",
+            "type": "string"
+          }
+        ],
+        "name": "updateUserInfo",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ]
+  }
