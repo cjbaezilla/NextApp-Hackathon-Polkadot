@@ -406,7 +406,7 @@ const MintPage: NextPage = () => {
                       </span>
                     }>
                       <span className="text-lg font-bold text-foreground">
-                        {mintPrice ? `${Math.round(Number(mintPrice) / 1e18 * mintAmount)} PAS` : `${Math.round(1 * mintAmount)} PAS`}
+                        {mintPrice ? `${(Number(mintPrice) / 1e18 * mintAmount).toFixed(3)} PAS` : `${(1 * mintAmount).toFixed(3)} PAS`}
                       </span>
                     </ClientOnly>
                   </div>

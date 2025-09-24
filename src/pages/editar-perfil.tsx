@@ -267,81 +267,6 @@ const EditarPerfilPage: NextPage = () => {
     }
   ];
 
-  // Si no está conectado o no está registrado, mostrar mensaje
-  if (!isConnected) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Head>
-          <title>Editar Perfil - DApp Polka</title>
-          <meta
-            content="Edita tu perfil en la plataforma DApp Polka"
-            name="description"
-          />
-          <link href="/favicon.ico" rel="icon" />
-        </Head>
-
-        <div className="container mx-auto px-3 py-4">
-          <div className="max-w-md mx-auto">
-            <Card className="p-4">
-              <CardContent className="p-0">
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center mx-auto">
-                    <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      Wallet no conectada
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Conecta tu wallet para editar tu perfil
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isUserRegistered && !isLoadingUserData) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Head>
-          <title>Editar Perfil - DApp Polka</title>
-          <meta
-            content="Edita tu perfil en la plataforma DApp Polka"
-            name="description"
-          />
-          <link href="/favicon.ico" rel="icon" />
-        </Head>
-
-        <div className="container mx-auto px-3 py-4">
-          <div className="max-w-md mx-auto">
-            <Card className="p-4">
-              <CardContent className="p-0">
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center mx-auto">
-                    <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      No estás registrado
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Primero debes registrarte para poder editar tu perfil
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <Head>
@@ -354,51 +279,85 @@ const EditarPerfilPage: NextPage = () => {
       </Head>
 
       <div className="container mx-auto px-3 py-4">
-        {/* Header compacto */}
-        <div className="mb-4">
-          <div>
-            <h1 className="text-lg font-bold text-foreground mb-1">
-              Editar Perfil
-            </h1>
-            <p className="text-muted-foreground text-xs">
-              Actualiza tu información en la comunidad DApp Polka
-            </p>
+        <ClientOnly fallback={
+          <div className="max-w-md mx-auto">
+            <Card className="p-4">
+              <CardContent className="p-0">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto">
+                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
+                      Cargando...
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Preparando el editor de perfil
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
+        }>
+          {/* Si no está conectado, mostrar mensaje */}
+          {!isConnected ? (
+            <div className="max-w-md mx-auto">
+              <Card className="p-4">
+                <CardContent className="p-0">
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center mx-auto">
+                      <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
+                        Wallet no conectada
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Conecta tu wallet para editar tu perfil
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : !isUserRegistered && !isLoadingUserData ? (
+            <div className="max-w-md mx-auto">
+              <Card className="p-4">
+                <CardContent className="p-0">
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center mx-auto">
+                      <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
+                        No estás registrado
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Primero debes registrarte para poder editar tu perfil
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <>
+              {/* Header compacto */}
+              <div className="mb-4">
+            <div>
+              <h1 className="text-lg font-bold text-foreground mb-1">
+                Editar Perfil
+              </h1>
+              <p className="text-muted-foreground text-xs">
+                Actualiza tu información en la comunidad DApp Polka
+              </p>
+            </div>
+          </div>
 
-        {/* Estadísticas principales */}
-        <div className="mb-4">
-          <div className="grid grid-cols-2 gap-2">
-            <ClientOnly fallback={
-              <>
-                <Card className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
-                  <CardContent className="p-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1 truncate">Usuarios Registrados</p>
-                        <p className="text-sm font-bold text-foreground truncate">0</p>
-                      </div>
-                      <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                        <Users className="w-3 h-3 text-primary" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="p-3 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/20 border-orange-200 dark:border-orange-800">
-                  <CardContent className="p-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1 truncate">Tu Estado</p>
-                        <p className="text-sm font-bold text-foreground truncate">Cargando...</p>
-                      </div>
-                      <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                        <User className="w-3 h-3 text-primary" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            }>
+          {/* Estadísticas principales */}
+          <div className="mb-4">
+            <div className="grid grid-cols-2 gap-2">
               {mainStats.map((stat, index) => {
                 const IconComponent = stat.icon;
                 return (
@@ -417,34 +376,31 @@ const EditarPerfilPage: NextPage = () => {
                   </Card>
                 );
               })}
-            </ClientOnly>
+            </div>
           </div>
-        </div>
 
-        {/* Panel de edición */}
-        <div className="max-w-md mx-auto">
+          {/* Panel de edición */}
+          <div className="max-w-md mx-auto">
           <Card className="p-4">
             <CardContent className="p-0">
               <div className="space-y-4">
                 {/* Mensaje de error */}
-                <ClientOnly fallback={null}>
-                  {updateError && (
-                    <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
-                          <span className="text-sm text-red-600 dark:text-red-400">{updateError}</span>
-                        </div>
-                        <button
-                          onClick={() => setUpdateError(null)}
-                          className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                {updateError && (
+                  <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        <span className="text-sm text-red-600 dark:text-red-400">{updateError}</span>
                       </div>
+                      <button
+                        onClick={() => setUpdateError(null)}
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                  )}
-                </ClientOnly>
+                  </div>
+                )}
 
                 {/* Pantalla de transición */}
                 {isTransitioning ? (
@@ -650,18 +606,19 @@ const EditarPerfilPage: NextPage = () => {
                   <p>• El nombre de usuario no se puede cambiar</p>
                   <p>• Los enlaces son opcionales pero recomendados</p>
                   <p>• Puedes actualizar tu información en cualquier momento</p>
-                  <ClientOnly fallback={null}>
-                    {!isConnected && (
-                      <p className="text-amber-600 dark:text-amber-400">
-                        ⚠️ Conecta tu wallet para poder editar tu perfil
-                      </p>
-                    )}
-                  </ClientOnly>
+                  {!isConnected && (
+                    <p className="text-amber-600 dark:text-amber-400">
+                      ⚠️ Conecta tu wallet para poder editar tu perfil
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+            </>
+          )}
+        </ClientOnly>
       </div>
     </div>
   );

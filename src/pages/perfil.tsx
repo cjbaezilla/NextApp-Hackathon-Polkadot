@@ -19,12 +19,14 @@ import {
   Globe,
   Award,
   Users,
-  TrendingUp
+  TrendingUp,
+  Copy
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useContractRead, useAccount } from 'wagmi';
 import { useRouter } from 'next/router';
 import ClientOnly from '@/components/ClientOnly';
+import { useUserDAOProposalsOptimized } from '@/hooks/useUserDAOProposals';
 
 // Cargar ABI del contrato desde variable de entorno
 const UsersContract = require(process.env.NEXT_PUBLIC_USERS_CONTRACT_ABI_PATH!);
@@ -49,6 +51,10 @@ const PerfilPage: NextPage = () => {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copiedItem, setCopiedItem] = useState<string | null>(null);
+
+  // Hook para obtener la cantidad de propuestas DAO del usuario
+  const { userProposalsCount, isLoading: isLoadingProposals } = useUserDAOProposalsOptimized();
 
   // Direcciones de los contratos desde variables de entorno
   const usersContractAddress = process.env.NEXT_PUBLIC_USERS_CONTRACT_ADDRESS as `0x${string}`;
@@ -119,6 +125,28 @@ const PerfilPage: NextPage = () => {
   // Función para acortar dirección de wallet
   const shortenAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // Función para copiar dirección al portapapeles
+  const copyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedItem('address');
+      setTimeout(() => setCopiedItem(null), 2000);
+    } catch (err) {
+      console.error('Error al copiar la dirección:', err);
+    }
+  };
+
+  // Función para copiar email al portapapeles
+  const copyEmail = async (email: string) => {
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopiedItem('email');
+      setTimeout(() => setCopiedItem(null), 2000);
+    } catch (err) {
+      console.error('Error al copiar el email:', err);
+    }
   };
 
   return (
@@ -291,6 +319,17 @@ const PerfilPage: NextPage = () => {
             {/* Address */}
             <div className="flex items-center justify-center space-x-2 text-muted-foreground">
               <span className="font-mono text-sm">{shortenAddress(userInfo.userAddress)}</span>
+              <button
+                onClick={() => copyAddress(userInfo.userAddress)}
+                className={`p-1 rounded transition-colors ${
+                  copiedItem === 'address' 
+                    ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400' 
+                    : 'hover:bg-muted'
+                }`}
+                title={copiedItem === 'address' ? '¡Copiado!' : 'Copiar dirección completa'}
+              >
+                <Copy className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Iconos sociales */}
@@ -333,6 +372,17 @@ const PerfilPage: NextPage = () => {
             <div className="flex items-center justify-center space-x-2 text-sm text-muted-foreground">
               <Mail className="w-4 h-4" />
               <span>{userInfo.email}</span>
+              <button
+                onClick={() => copyEmail(userInfo.email)}
+                className={`p-1 rounded transition-colors ${
+                  copiedItem === 'email' 
+                    ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400' 
+                    : 'hover:bg-muted'
+                }`}
+                title={copiedItem === 'email' ? '¡Copiado!' : 'Copiar email'}
+              >
+                <Copy className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Fecha de registro */}
@@ -365,8 +415,14 @@ const PerfilPage: NextPage = () => {
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center mx-auto mb-2">
                   <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
-                <p className="text-2xl font-bold text-foreground">0</p>
-                <p className="text-sm text-muted-foreground">Votos DAO</p>
+                <ClientOnly fallback={
+                  <p className="text-2xl font-bold text-foreground">0</p>
+                }>
+                  <p className="text-2xl font-bold text-foreground">
+                    {isLoadingProposals ? '...' : userProposalsCount}
+                  </p>
+                </ClientOnly>
+                <p className="text-sm text-muted-foreground">Propuestas DAO</p>
               </div>
             </div>
           </div>

@@ -52,8 +52,8 @@ const sepolia = defineChain({
   id: 11155111,
   name: 'Sepolia',
   nativeCurrency: {
-    name: 'Sepolia Ether',
-    symbol: 'SEP',
+    name: 'Ether',
+    symbol: 'ETH',
     decimals: 18,
   },
   rpcUrls: {
