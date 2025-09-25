@@ -341,9 +341,10 @@ export const useAllProposals = () => {
   };
 };
 
-// Hook para obtener detalles completos de todas las propuestas
+// Hook para obtener detalles completos de todas las propuestas con datos reales del contrato
 export const useAllProposalDetails = () => {
   const { totalProposals, isLoadingTotal } = useDAOProposals();
+  const daoContractAddress = process.env.NEXT_PUBLIC_DAO_CONTRACT_ADDRESS as `0x${string}`;
 
   // Crear array de IDs de propuestas usando useMemo para evitar recrear en cada render
   const proposalIds = useMemo(() => {
@@ -354,21 +355,131 @@ export const useAllProposalDetails = () => {
   // Cargar propuestas individualmente usando useMultipleProposals
   const { proposals: loadedProposals, isLoading: isLoadingMultiple, errors } = useMultipleProposals(proposalIds);
 
+  // Obtener datos de votantes únicos y poder total para cada propuesta
+  const proposal0Voters = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getUniqueVotersCount',
+    args: [BigInt(0)],
+    query: {
+      enabled: proposalIds.length > 0,
+    },
+  });
+
+  const proposal0Power = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getProposalTotalVotingPower',
+    args: [BigInt(0)],
+    query: {
+      enabled: proposalIds.length > 0,
+    },
+  });
+
+  const proposal1Voters = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getUniqueVotersCount',
+    args: [BigInt(1)],
+    query: {
+      enabled: proposalIds.length > 1,
+    },
+  });
+
+  const proposal1Power = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getProposalTotalVotingPower',
+    args: [BigInt(1)],
+    query: {
+      enabled: proposalIds.length > 1,
+    },
+  });
+
+  const proposal2Voters = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getUniqueVotersCount',
+    args: [BigInt(2)],
+    query: {
+      enabled: proposalIds.length > 2,
+    },
+  });
+
+  const proposal2Power = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getProposalTotalVotingPower',
+    args: [BigInt(2)],
+    query: {
+      enabled: proposalIds.length > 2,
+    },
+  });
+
+  const proposal3Voters = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getUniqueVotersCount',
+    args: [BigInt(3)],
+    query: {
+      enabled: proposalIds.length > 3,
+    },
+  });
+
+  const proposal3Power = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getProposalTotalVotingPower',
+    args: [BigInt(3)],
+    query: {
+      enabled: proposalIds.length > 3,
+    },
+  });
+
+  const proposal4Voters = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getUniqueVotersCount',
+    args: [BigInt(4)],
+    query: {
+      enabled: proposalIds.length > 4,
+    },
+  });
+
+  const proposal4Power = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'getProposalTotalVotingPower',
+    args: [BigInt(4)],
+    query: {
+      enabled: proposalIds.length > 4,
+    },
+  });
+
   // Usar useMemo para procesar los detalles de las propuestas y evitar bucles infinitos
   const processedProposalDetails = useMemo(() => {
     if (!loadedProposals || loadedProposals.length === 0) return [];
     
+    // Array de datos de votantes y poder
+    const votersData = [proposal0Voters, proposal1Voters, proposal2Voters, proposal3Voters, proposal4Voters];
+    const powerData = [proposal0Power, proposal1Power, proposal2Power, proposal3Power, proposal4Power];
+    
     // Convertir propuestas a detalles completos
-    const details: ProposalDetails[] = loadedProposals.map(proposal => ({
-      ...proposal,
-      uniqueVoters: 0, // Se puede obtener del contrato si es necesario
-      totalVotingPower: BigInt(0), // Se puede obtener del contrato si es necesario
-      contractStatus: 'unknown' // Se puede obtener del contrato si es necesario
-    }));
+    const details: ProposalDetails[] = loadedProposals.map((proposal, index) => {
+      const voters = votersData[index]?.data;
+      const power = powerData[index]?.data;
+      
+      return {
+        ...proposal,
+        uniqueVoters: voters ? Number(voters) : 0,
+        totalVotingPower: power ? (power as bigint) : BigInt(0),
+        contractStatus: 'active' // Estado por defecto
+      };
+    });
     
     // Ordenar por ID descendente (más recientes primero)
     return details.sort((a, b) => Number(b.id) - Number(a.id));
-  }, [loadedProposals]);
+  }, [loadedProposals, proposal0Voters.data, proposal0Power.data, proposal1Voters.data, proposal1Power.data, proposal2Voters.data, proposal2Power.data, proposal3Voters.data, proposal3Power.data, proposal4Voters.data, proposal4Power.data]);
 
   // Usar useMemo para el estado de error
   const processedError = useMemo(() => {
@@ -378,9 +489,16 @@ export const useAllProposalDetails = () => {
     return null;
   }, [errors]);
 
+  // Verificar si está cargando datos de votantes y poder
+  const isLoadingVotingData = proposal0Voters.isLoading || proposal0Power.isLoading || 
+                              proposal1Voters.isLoading || proposal1Power.isLoading ||
+                              proposal2Voters.isLoading || proposal2Power.isLoading ||
+                              proposal3Voters.isLoading || proposal3Power.isLoading ||
+                              proposal4Voters.isLoading || proposal4Power.isLoading;
+
   return {
     proposalDetails: processedProposalDetails,
-    isLoading: isLoadingTotal || isLoadingMultiple,
+    isLoading: isLoadingTotal || isLoadingMultiple || isLoadingVotingData,
     error: processedError,
     totalProposals,
   };

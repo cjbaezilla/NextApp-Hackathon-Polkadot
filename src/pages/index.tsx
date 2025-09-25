@@ -3,6 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { TokenIcon } from '@/components/ui/token-icon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Plus, Users, User, Mail, Twitter, Github, MessageCircle, Calendar, ExternalLink, Globe, X } from 'lucide-react';
@@ -10,9 +11,13 @@ import { useState, useEffect } from 'react';
 import { useContractRead, useAccount } from 'wagmi';
 import ClientOnly from '@/components/ClientOnly';
 import { useUsersData, UserInfo } from '@/hooks/useUsersData';
+import { useERC20Tokens, TokenInfo } from '@/hooks/useERC20Tokens';
 
 // Cargar ABI del contrato desde variable de entorno
 const UsersContract = require(process.env.NEXT_PUBLIC_USERS_CONTRACT_ABI_PATH!);
+
+// Dirección del contrato ERC20MembersFactory desde variables de entorno
+const ERC20FactoryAddress = process.env.NEXT_PUBLIC_ERC20MEMBERSFACTORY_CONTRACT_ADDRESS as `0x${string}`;
 
 // Datos de ejemplo para proyectos NFT
 const nftProjects = [
@@ -42,36 +47,6 @@ const nftProjects = [
   }
 ];
 
-// Datos de ejemplo para tokens ERC20
-const erc20Tokens = [
-  {
-    id: 1,
-    name: 'PolkaToken',
-    symbol: 'POLK',
-    address: '0x1111...2222',
-    price: '$0.45',
-    change: '+15.2%',
-    marketCap: '$2.1M'
-  },
-  {
-    id: 2,
-    name: 'DotCoin',
-    symbol: 'DOTC',
-    address: '0x3333...4444',
-    price: '$1.25',
-    change: '+5.7%',
-    marketCap: '$5.8M'
-  },
-  {
-    id: 3,
-    name: 'Substrate Token',
-    symbol: 'SUB',
-    address: '0x5555...6666',
-    price: '$0.78',
-    change: '-3.4%',
-    marketCap: '$1.9M'
-  }
-];
 
 // Datos de ejemplo para DAOs
 const daos = [
@@ -137,6 +112,14 @@ const Home: NextPage = () => {
 
   // Dirección del contrato desde variables de entorno
   const contractAddress = process.env.NEXT_PUBLIC_USERS_CONTRACT_ADDRESS as `0x${string}`;
+
+  // Usar el hook personalizado para obtener tokens ERC20
+  const { 
+    tokens: erc20Tokens, 
+    totalTokens: totalTokensCreated, 
+    isLoading: isLoadingTokens, 
+    error: tokensError 
+  } = useERC20Tokens(ERC20FactoryAddress, 3);
 
   // Leer datos del contrato
   const { data: totalMembers } = useContractRead({
@@ -247,16 +230,20 @@ const Home: NextPage = () => {
               </CardContent>
             </Card>
 
-            {/* Proyectos NFT */}
+            {/* Tokens Creados */}
             <Card className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20 border-purple-200 dark:border-purple-800">
               <CardContent className="p-0">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Proyectos NFT</p>
-                    <p className="text-lg font-bold text-foreground">1,234</p>
+                    <p className="text-xs text-muted-foreground mb-1">Tokens Creados</p>
+                    <p className="text-lg font-bold text-foreground">
+                      <ClientOnly fallback="0">
+                        {totalTokensCreated.toString()}
+                      </ClientOnly>
+                    </p>
                   </div>
                   <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">N</span>
+                    <span className="text-white text-xs font-bold">T</span>
                   </div>
                 </div>
               </CardContent>
@@ -354,29 +341,87 @@ const Home: NextPage = () => {
             </div>
             
             <div className="space-y-2">
-              {erc20Tokens.map((token) => (
-                <Card key={token.id} className="p-2 hover:shadow-md hover:shadow-accent/5 transition-all duration-200">
-                  <CardContent className="p-0">
-                    <div className="flex items-center space-x-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="bg-accent text-accent-foreground text-xs font-medium">
-                          {token.symbol.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xs font-medium text-card-foreground mb-1">
-                          {token.name}
-                        </h3>
-                        
-                        <p className="text-xs text-muted-foreground truncate">
-                          {token.address}
-                        </p>
+              <ClientOnly fallback={
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i} className="p-2">
+                      <CardContent className="p-0">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-muted rounded-full animate-pulse"></div>
+                          <div className="flex-1 space-y-1">
+                            <div className="h-3 bg-muted rounded animate-pulse w-3/4"></div>
+                            <div className="h-2 bg-muted rounded animate-pulse w-1/2"></div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              }>
+                {isLoadingTokens ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i} className="p-2">
+                        <CardContent className="p-0">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 bg-muted rounded-full animate-pulse"></div>
+                            <div className="flex-1 space-y-1">
+                              <div className="h-3 bg-muted rounded animate-pulse w-3/4"></div>
+                              <div className="h-2 bg-muted rounded animate-pulse w-1/2"></div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : tokensError ? (
+                  <Card className="p-4">
+                    <CardContent className="p-0">
+                      <div className="text-center space-y-2">
+                        <div className="w-8 h-8 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
+                          <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Error al cargar tokens</p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ) : erc20Tokens.length > 0 ? (
+                  erc20Tokens.map((token, index) => (
+                    <Card key={index} className="p-2 hover:shadow-md hover:shadow-accent/5 transition-all duration-200">
+                      <CardContent className="p-0">
+                        <div className="flex items-center space-x-2">
+                          <TokenIcon 
+                            tokenAddress={token.tokenAddress}
+                            size={24}
+                            className="border-gray-200 dark:border-gray-700"
+                          />
+                          
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-xs font-medium text-card-foreground mb-1">
+                              {token.name}
+                            </h3>
+                            
+                            <p className="text-xs text-muted-foreground truncate">
+                              {shortenAddress(token.tokenAddress)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card className="p-4">
+                    <CardContent className="p-0">
+                      <div className="text-center space-y-2">
+                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center mx-auto">
+                          <span className="text-muted-foreground text-xs font-bold">T</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">No hay tokens creados</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </ClientOnly>
             </div>
           </div>
 

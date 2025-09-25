@@ -1,5 +1,5 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Globe, ChevronDown, Moon, Sun, Menu, X, Home, ExternalLink, Plus, Vote, UserPlus, User } from 'lucide-react';
+import { Globe, ChevronDown, Moon, Sun, Menu, X, Home, ExternalLink, Plus, Vote, UserPlus, User, Coins } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { useTheme } from '../hooks/useTheme';
@@ -23,6 +23,10 @@ const Navigation = () => {
     { icon: UserPlus, label: 'Registro', href: '/registro' },
     { icon: User, label: 'Perfil', href: '/perfil' },
     { icon: Vote, label: 'DAO', href: '/dao' }
+  ];
+
+  const specialMenuItems = [
+    { icon: Coins, label: 'Crear Token', href: '/crear-token', isSpecial: true }
   ];
 
   // Cerrar menú al hacer clic fuera
@@ -176,6 +180,28 @@ const Navigation = () => {
                       >
                         <IconComponent className="w-5 h-5" />
                         <span className="text-sm font-medium">{item.label}</span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {/* Separador */}
+              <div className="my-4 border-t border-border"></div>
+
+              {/* Opciones especiales */}
+              <ul className="space-y-2">
+                {specialMenuItems.map((item, index) => {
+                  const IconComponent = item.icon;
+                  return (
+                    <li key={index}>
+                      <a
+                        href={item.href}
+                        className="flex items-center space-x-3 px-3 py-3 rounded-md bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 transition-all duration-200 shadow-sm"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <IconComponent className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        <span className="text-sm font-semibold">{item.label}</span>
                       </a>
                     </li>
                   );

@@ -9,6 +9,7 @@ import { Users, Vote, FileText, CheckCircle, XCircle, Clock, Plus, ExternalLink,
 import { useContractRead, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import ClientOnly from '@/components/ClientOnly';
 import { useDAOProposals, useProposal, useAllProposals, useAllProposalDetails, DAOProposal, ProposalDetails, ProposalStatus } from '@/hooks/useDAOProposals';
+import { useUserVotingStatus } from '@/hooks/useUserVotingStatus';
 import { useRouter } from 'next/router';
 const DAOContract = require(process.env.NEXT_PUBLIC_DAO_CONTRACT_ABI_PATH!);
 
@@ -182,6 +183,72 @@ const DAOPage: NextPage = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Componente para botones de votación con verificación de estado
+  const VotingButtons = ({ proposalId, status }: { proposalId: number; status: ProposalStatus }) => {
+    const { hasVoted, isLoading: isLoadingVotingStatus } = useUserVotingStatus(proposalId);
+    const isCurrentlyVoting = votingProposal === proposalId && isVoting;
+    const userHasVoted = hasVoted === true;
+
+    if (!status.canVote || !isConnected) {
+      return null;
+    }
+
+    if (isLoadingVotingStatus) {
+      return (
+        <div className="flex space-x-2">
+          <Button size="sm" variant="outline" className="flex-1 text-xs" disabled>
+            <ThumbsUp className="w-3 h-3 mr-1" />
+            Verificando...
+          </Button>
+          <Button size="sm" variant="outline" className="flex-1 text-xs" disabled>
+            <ThumbsDown className="w-3 h-3 mr-1" />
+            Verificando...
+          </Button>
+        </div>
+      );
+    }
+
+    if (userHasVoted) {
+      return (
+        <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-center justify-center space-x-2">
+            <CheckCircle className="w-4 h-4 text-blue-600" />
+            <p className="text-xs text-blue-800 dark:text-blue-200">
+              Ya has votado en esta propuesta
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex space-x-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1 text-xs"
+          onClick={() => handleVote(proposalId, true)}
+          disabled={isCurrentlyVoting || isConfirmingVote}
+        >
+          <ThumbsUp className="w-3 h-3 mr-1" />
+          {isCurrentlyVoting && votingSupport === true 
+            ? 'Votando...' : 'Votar A Favor'}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1 text-xs"
+          onClick={() => handleVote(proposalId, false)}
+          disabled={isCurrentlyVoting || isConfirmingVote}
+        >
+          <ThumbsDown className="w-3 h-3 mr-1" />
+          {isCurrentlyVoting && votingSupport === false 
+            ? 'Votando...' : 'Votar En Contra'}
+        </Button>
+      </div>
+    );
   };
 
   // Función para obtener el color del badge según el estado
@@ -573,32 +640,7 @@ const DAOPage: NextPage = () => {
                           </div>
 
                           {/* Botones de votación */}
-                          {status.canVote && isConnected && (
-                            <div className="flex space-x-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex-1 text-xs"
-                                onClick={() => handleVote(Number(proposal.id), true)}
-                                disabled={isCurrentlyVoting || isConfirmingVote}
-                              >
-                                <ThumbsUp className="w-3 h-3 mr-1" />
-                                {isCurrentlyVoting && votingSupport === true 
-                                  ? 'Votando...' : 'Votar A Favor'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex-1 text-xs"
-                                onClick={() => handleVote(Number(proposal.id), false)}
-                                disabled={isCurrentlyVoting || isConfirmingVote}
-                              >
-                                <ThumbsDown className="w-3 h-3 mr-1" />
-                                {isCurrentlyVoting && votingSupport === false 
-                                  ? 'Votando...' : 'Votar En Contra'}
-                              </Button>
-                            </div>
-                          )}
+                          <VotingButtons proposalId={Number(proposal.id)} status={status} />
 
                           {status.canVote && !isConnected && (
                             <div className="p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
