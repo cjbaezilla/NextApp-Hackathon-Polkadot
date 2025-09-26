@@ -1,7 +1,8 @@
 import * as React from "react"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 
-interface TokenIconProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+interface TokenIconProps {
   /** Dirección del token para generar el icono */
   tokenAddress: string
   /** Tamaño del icono en píxeles */
@@ -20,13 +21,12 @@ function TokenIcon({
   tokenAddress, 
   size = 32, 
   className, 
-  alt = `Token icon for ${tokenAddress}`,
-  ...props 
+  alt = `Token icon for ${tokenAddress}`
 }: TokenIconProps) {
   const [imageError, setImageError] = React.useState(false)
   
   // Generar URL del icono usando DiceBear
-  const iconUrl = `https://api.dicebear.com/9.x/shapes/svg?seed=${encodeURIComponent(tokenAddress)}`
+  const iconUrl: string = `https://api.dicebear.com/9.x/shapes/svg?seed=${encodeURIComponent(tokenAddress)}`
   
   // Fallback simple si hay error cargando la imagen
   const fallbackIcon = (
@@ -46,7 +46,7 @@ function TokenIcon({
   }
 
   return (
-    <img
+    <Image
       src={iconUrl}
       alt={alt}
       width={size}
@@ -56,7 +56,6 @@ function TokenIcon({
         className
       )}
       onError={() => setImageError(true)}
-      {...props}
     />
   )
 }

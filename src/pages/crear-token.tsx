@@ -163,69 +163,88 @@ const CrearTokenPage: NextPage = () => {
                 {userRequirements.isLoading ? (
                   <div className="flex items-center space-x-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm text-muted-foreground">Verificando requisitos...</span>
+                    <span className="text-sm text-muted-foreground">Cargando requisitos...</span>
                   </div>
-                ) : !isConnected ? (
-                  <div className="flex items-center space-x-2 text-orange-600 dark:text-orange-400">
-                    <AlertTriangle className="w-4 h-4" />
-                    <span className="text-sm">Conecta tu wallet para verificar requisitos</span>
-                  </div>
-                ) : userRequirements ? (
+                ) : (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">Usuario registrado</span>
+                    {/* Mostrar requisitos del contrato siempre */}
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-3">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Info className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                          Requisitos del Contrato
+                        </span>
                       </div>
-                      <Badge className={userRequirements.isRegistered 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                      }>
-                        {userRequirements.isRegistered ? (
-                          <><CheckCircle className="w-3 h-3 mr-1" />Sí</>
-                        ) : (
-                          <><XCircle className="w-3 h-3 mr-1" />No</>
-                        )}
-                      </Badge>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Coins className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm">NFTs poseídos</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium">{userRequirements.nftBalance}</span>
-                        <Badge className={userRequirements.nftBalance >= minNFTsRequired
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                        }>
-                          {userRequirements.nftBalance >= minNFTsRequired ? (
-                            <><CheckCircle className="w-3 h-3 mr-1" />✓</>
-                          ) : (
-                            <><XCircle className="w-3 h-3 mr-1" />Mín: {minNFTsRequired}</>
-                          )}
-                        </Badge>
+                      <div className="space-y-1 text-xs text-blue-700 dark:text-blue-300">
+                        <p>• Estar registrado en la plataforma</p>
+                        <p>• Poseer al menos {minNFTsRequired} NFTs</p>
+                        <p>• Pagar la tarifa de creación</p>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Estado general</span>
-                        <Badge className={userRequirements.canCreateToken
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                        }>
-                          {userRequirements.canCreateToken ? (
-                            <><CheckCircle className="w-3 h-3 mr-1" />Puedes crear token</>
-                          ) : (
-                            <><XCircle className="w-3 h-3 mr-1" />No cumples requisitos</>
-                          )}
-                        </Badge>
+                    {!isConnected ? (
+                      <div className="flex items-center space-x-2 text-orange-600 dark:text-orange-400">
+                        <AlertTriangle className="w-4 h-4" />
+                        <span className="text-sm">Conecta tu wallet para verificar tu estado</span>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Users className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">Usuario registrado</span>
+                          </div>
+                          <Badge className={userRequirements.isRegistered 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                          }>
+                            {userRequirements.isRegistered ? (
+                              <><CheckCircle className="w-3 h-3 mr-1" />Sí</>
+                            ) : (
+                              <><XCircle className="w-3 h-3 mr-1" />No</>
+                            )}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Coins className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">NFTs poseídos</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium">{userRequirements.nftBalance}</span>
+                            <Badge className={userRequirements.nftBalance >= minNFTsRequired
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                            }>
+                              {userRequirements.nftBalance >= minNFTsRequired ? (
+                                <><CheckCircle className="w-3 h-3 mr-1" />✓</>
+                              ) : (
+                                <><XCircle className="w-3 h-3 mr-1" />Mín: {minNFTsRequired}</>
+                              )}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-border">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Estado general</span>
+                            <Badge className={userRequirements.canCreateToken
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                            }>
+                              {userRequirements.canCreateToken ? (
+                                <><CheckCircle className="w-3 h-3 mr-1" />Puedes crear token</>
+                              ) : (
+                                <><XCircle className="w-3 h-3 mr-1" />No cumples requisitos</>
+                              )}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ) : null}
+                )}
               </CardContent>
             </Card>
           </ClientOnly>

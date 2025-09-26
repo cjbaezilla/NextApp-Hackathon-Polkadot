@@ -84,7 +84,10 @@ const NuevaPropuestaPage: NextPage = () => {
     address: daoContractAddress,
     abi: DAOContract.abi,
     functionName: 'getVotingPower',
-    args: address ? [address] : undefined,
+    args: isConnected && address ? [address] : undefined,
+    query: {
+      enabled: isConnected && !!address,
+    },
   });
 
 
@@ -164,7 +167,7 @@ const NuevaPropuestaPage: NextPage = () => {
       return;
     }
 
-    if (!canCreateProposal) {
+    if (isConnected && !canCreateProposal) {
       setError(`Necesitas al menos ${minimumTokensToCreate ? Number(minimumTokensToCreate).toString() : '10'} NFTs para crear propuestas`);
       return;
     }
@@ -209,12 +212,12 @@ const NuevaPropuestaPage: NextPage = () => {
   }, [isConfirmed, router]);
 
   // Verificar si el usuario puede crear propuestas
-  const canCreateProposal = userVotingPower && minimumTokensToCreate 
+  const canCreateProposal = isConnected && userVotingPower && minimumTokensToCreate 
     ? Number(userVotingPower) >= Number(minimumTokensToCreate)
     : false;
 
   // Verificar si los datos del contrato están cargando
-  const isLoadingContractData = minTokensLoading || votingPowerLoading || userVotingPower === undefined || minimumTokensToCreate === undefined;
+  const isLoadingContractData = minTokensLoading || (isConnected && votingPowerLoading) || minimumTokensToCreate === undefined;
 
 
   // Establecer fechas por defecto
@@ -293,7 +296,7 @@ const NuevaPropuestaPage: NextPage = () => {
                       <span className="text-sm font-medium">Tu Poder de Voto</span>
                     </div>
                     <span className="text-sm font-bold text-foreground">
-                      {isLoadingContractData ? 'Cargando...' : (userVotingPower ? Number(userVotingPower).toString() : '0')} NFTs
+                      {isLoadingContractData ? 'Cargando...' : (isConnected ? (userVotingPower ? Number(userVotingPower).toString() : '0') : '0')} NFTs
                     </span>
                   </div>
                   
@@ -303,7 +306,7 @@ const NuevaPropuestaPage: NextPage = () => {
                       <span className="text-sm font-medium">Mínimo Requerido</span>
                     </div>
                     <span className="text-sm font-bold text-foreground">
-                      {isLoadingContractData ? 'Cargando...' : (minimumTokensToCreate ? Number(minimumTokensToCreate).toString() : '10')} NFTs
+                      {minTokensLoading ? 'Cargando...' : (minimumTokensToCreate ? Number(minimumTokensToCreate).toString() : '10')} NFTs
                     </span>
                   </div>
 
@@ -317,7 +320,7 @@ const NuevaPropuestaPage: NextPage = () => {
                     </div>
                   </div>
 
-                  {!isLoadingContractData && !canCreateProposal && (
+                  {!isLoadingContractData && isConnected && !canCreateProposal && (
                     <div className="p-3 bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                       <div className="flex items-center space-x-2">
                         <AlertCircle className="w-4 h-4 text-orange-600" />

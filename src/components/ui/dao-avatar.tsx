@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 interface DAOAvatarProps {
@@ -25,9 +26,11 @@ export const DAOAvatar: React.FC<DAOAvatarProps> = ({
   const avatarUrl = `https://api.dicebear.com/9.x/icons/svg?seed=${daoAddress}`;
 
   return (
-    <img
+    <Image
       src={avatarUrl}
       alt={alt}
+      width={size === 'sm' ? 32 : size === 'md' ? 40 : size === 'lg' ? 48 : 64}
+      height={size === 'sm' ? 32 : size === 'md' ? 40 : size === 'lg' ? 48 : 64}
       className={cn(
         'rounded-full object-cover border-2 border-gray-200 dark:border-gray-700',
         sizeClasses[size],

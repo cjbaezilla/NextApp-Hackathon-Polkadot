@@ -53,6 +53,10 @@ export const useTokenCreation = () => {
     address: factoryContractAddress,
     abi: ERC20MembersFactory.abi,
     functionName: 'getTokenCreationFee',
+    query: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
   });
 
   // Leer mínimo de NFTs requeridos
@@ -60,6 +64,10 @@ export const useTokenCreation = () => {
     address: factoryContractAddress,
     abi: ERC20MembersFactory.abi,
     functionName: 'getMinNFTsRequired',
+    query: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
   });
 
   // Verificar si el usuario está registrado
@@ -68,6 +76,11 @@ export const useTokenCreation = () => {
     abi: UsersContract.abi,
     functionName: 'isRegisteredUser',
     args: address ? [address] : ['0x0000000000000000000000000000000000000000'],
+    query: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      enabled: !!address, // Solo ejecutar si hay dirección
+    }
   });
 
   // Leer balance de NFTs del usuario
@@ -76,6 +89,11 @@ export const useTokenCreation = () => {
     abi: NFTContract.abi,
     functionName: 'balanceOf',
     args: address ? [address] : ['0x0000000000000000000000000000000000000000'],
+    query: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      enabled: !!address, // Solo ejecutar si hay dirección
+    }
   });
 
   // Función para crear token
@@ -88,12 +106,26 @@ export const useTokenCreation = () => {
 
   // Efecto para verificar requisitos del usuario
   useEffect(() => {
-    const isLoading = isLoadingRegistration || isLoadingNftBalance || isLoadingMinNFTs;
+    const minNFTs = minNFTsRequired ? Number(minNFTsRequired) : 5; // Valor por defecto
     
-    if (!isLoading && address && isUserRegistered !== undefined && userNftBalance !== undefined && minNFTsRequired !== undefined) {
+    // Si no hay wallet conectado, mostrar requisitos básicos inmediatamente
+    if (!address) {
+      setUserRequirements({
+        isRegistered: false,
+        nftBalance: 0,
+        canCreateToken: false,
+        isLoading: false
+      });
+      return;
+    }
+    
+    // Si hay wallet conectado, verificar si las llamadas están cargando
+    const isLoading = isLoadingRegistration || isLoadingNftBalance;
+    
+    if (!isLoading && isUserRegistered !== undefined && userNftBalance !== undefined) {
+      // Si hay wallet conectado, verificar requisitos específicos
       const isRegistered = Boolean(isUserRegistered);
       const nftBalance = Number(userNftBalance);
-      const minNFTs = Number(minNFTsRequired);
       const canCreate = isRegistered && nftBalance >= minNFTs;
 
       setUserRequirements({
@@ -111,8 +143,7 @@ export const useTokenCreation = () => {
     userNftBalance, 
     minNFTsRequired, 
     isLoadingRegistration, 
-    isLoadingNftBalance, 
-    isLoadingMinNFTs
+    isLoadingNftBalance
   ]);
 
   // Efecto para manejar estados de creación

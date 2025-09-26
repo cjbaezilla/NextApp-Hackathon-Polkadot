@@ -49,6 +49,10 @@ export const useDAOCreation = () => {
     address: DAOMEMBERSFACTORY_CONTRACT_ADDRESS,
     abi: DAOMembersFactoryABI.abi,
     functionName: 'getDAOCreationFee',
+    query: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
   });
 
   // Leer mínimo de NFTs requeridos
@@ -56,6 +60,10 @@ export const useDAOCreation = () => {
     address: DAOMEMBERSFACTORY_CONTRACT_ADDRESS,
     abi: DAOMembersFactoryABI.abi,
     functionName: 'getMinNFTsRequired',
+    query: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
   });
 
   // Hook para escribir en el contrato
@@ -68,6 +76,17 @@ export const useDAOCreation = () => {
 
   // Procesar requisitos del usuario
   useEffect(() => {
+    // Si no hay wallet conectado, establecer requisitos básicos
+    if (!address) {
+      setUserRequirements({
+        isRegistered: false,
+        nftBalance: 0,
+        canCreateDAO: false,
+      });
+      return;
+    }
+
+    // Si hay wallet conectado y datos disponibles, procesarlos
     if (userRequirementsData && Array.isArray(userRequirementsData) && userRequirementsData.length >= 3) {
       const [isRegistered, nftBalance, canCreateDAO] = userRequirementsData as [boolean, bigint, boolean];
       setUserRequirements({
@@ -76,7 +95,7 @@ export const useDAOCreation = () => {
         canCreateDAO,
       });
     }
-  }, [userRequirementsData]);
+  }, [userRequirementsData, address]);
 
   // Actualizar estado de creación
   useEffect(() => {

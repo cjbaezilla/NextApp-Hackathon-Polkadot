@@ -479,7 +479,7 @@ export const useAllProposalDetails = () => {
     
     // Ordenar por ID descendente (más recientes primero)
     return details.sort((a, b) => Number(b.id) - Number(a.id));
-  }, [loadedProposals, proposal0Voters.data, proposal0Power.data, proposal1Voters.data, proposal1Power.data, proposal2Voters.data, proposal2Power.data, proposal3Voters.data, proposal3Power.data, proposal4Voters.data, proposal4Power.data]);
+  }, [loadedProposals, proposal0Voters, proposal0Power, proposal1Voters, proposal1Power, proposal2Voters, proposal2Power, proposal3Voters, proposal3Power, proposal4Voters, proposal4Power]);
 
   // Usar useMemo para el estado de error
   const processedError = useMemo(() => {

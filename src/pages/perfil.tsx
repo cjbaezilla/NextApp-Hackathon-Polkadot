@@ -35,7 +35,10 @@ import { useRouter } from 'next/router';
 import ClientOnly from '@/components/ClientOnly';
 import TokenExplorerModal from '@/components/TokenExplorerModal';
 import { useUserTokens } from '@/hooks/useUserTokens';
+import { useUserTokensWithBalance } from '@/hooks/useUserTokensWithBalance';
 import { useUserDAOs } from '@/hooks/useUserDAOs';
+import { TokensWithBalanceList } from '@/components/TokenWithBalanceItem';
+import { CommunityTokensWithBalance } from '@/components/CommunityTokensWithBalance';
 import UsersContract from '@/contracts/UsersContract.json';
 import NFTContract from '@/contracts/NFTContract.json';
 import SimpleERC20Contract from '@/contracts/SimpleERC20.json';
@@ -66,8 +69,16 @@ const PerfilPage: NextPage = () => {
   const [selectedToken, setSelectedToken] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Obtener el parámetro user de la URL
+  const { user: urlUser } = router.query;
+  
+  // Determinar la dirección objetivo, pero solo después de que el router esté listo
+  const targetUserAddress = router.isReady 
+    ? (urlUser as string || address)
+    : null;
 
-  // Hook para obtener DAOs del usuario
+
+  // Hook para obtener DAOs del usuario - solo cuando el router esté listo
   const { 
     userDAOs, 
     daoCount, 
@@ -76,9 +87,9 @@ const PerfilPage: NextPage = () => {
     refreshDAOs,
     formatCreationDate: formatDAOCreationDate,
     shortenAddress: shortenDAOAddress
-  } = useUserDAOs();
+  } = useUserDAOs(targetUserAddress || undefined);
 
-  // Hook para obtener tokens del usuario
+  // Hook para obtener tokens del usuario - solo cuando el router esté listo
   const { 
     userTokens, 
     tokenCount, 
@@ -89,7 +100,21 @@ const PerfilPage: NextPage = () => {
     formatInitialSupply,
     formatBalance,
     shortenAddress
-  } = useUserTokens();
+  } = useUserTokens(targetUserAddress || undefined);
+
+  // Hook para obtener todos los tokens del factory
+  const { 
+    allTokens, 
+    tokensCount, 
+    isLoading: isLoadingAllTokens, 
+    error: allTokensError,
+    refreshTokens: refreshAllTokens,
+    formatCreationDate: formatCreationDateAllTokens,
+    formatInitialSupply: formatInitialSupplyAllTokens,
+    formatBalance: formatBalanceAllTokens,
+    shortenAddress: shortenAddressAllTokens
+  } = useUserTokensWithBalance(targetUserAddress || undefined);
+
 
   // Direcciones de los contratos desde variables de entorno
   const usersContractAddress = process.env.NEXT_PUBLIC_USERS_CONTRACT_ADDRESS as `0x${string}`;
@@ -106,23 +131,32 @@ const PerfilPage: NextPage = () => {
     address: usersContractAddress,
     abi: UsersContract.abi,
     functionName: 'isRegisteredUser',
-    args: address ? [address] : ['0x0000000000000000000000000000000000000000'],
+    args: targetUserAddress ? [targetUserAddress] : ['0x0000000000000000000000000000000000000000'],
+    query: {
+      enabled: !!targetUserAddress, // Solo ejecutar cuando tengamos una dirección válida
+    },
   });
 
-  // Leer información del usuario actual
+  // Leer información del usuario objetivo
   const { data: userData, refetch: refetchUserInfo } = useContractRead({
     address: usersContractAddress,
     abi: UsersContract.abi,
     functionName: 'getUserInfo',
-    args: address ? [address] : ['0x0000000000000000000000000000000000000000'],
+    args: targetUserAddress ? [targetUserAddress] : ['0x0000000000000000000000000000000000000000'],
+    query: {
+      enabled: !!targetUserAddress, // Solo ejecutar cuando tengamos una dirección válida
+    },
   }) as { data: UserInfo | undefined; refetch: () => void };
 
-  // Leer balance de NFT del usuario
+  // Leer balance de NFT del usuario objetivo
   const { data: userNftBalance, refetch: refetchUserNftBalance } = useContractRead({
     address: nftContractAddress,
     abi: NFTContract.abi,
     functionName: 'balanceOf',
-    args: address ? [address] : ['0x0000000000000000000000000000000000000000'],
+    args: targetUserAddress ? [targetUserAddress] : ['0x0000000000000000000000000000000000000000'],
+    query: {
+      enabled: !!targetUserAddress, // Solo ejecutar cuando tengamos una dirección válida
+    },
   });
 
   // Efecto para cargar datos del usuario
@@ -134,7 +168,7 @@ const PerfilPage: NextPage = () => {
       setError('Usuario no registrado');
       setIsLoading(false);
     }
-  }, [userData, userRegistered]);
+  }, [userData, userRegistered, targetUserAddress]);
 
   // Efecto para mostrar mensajes de éxito si se viene de crear un token o DAO
   useEffect(() => {
@@ -148,8 +182,9 @@ const PerfilPage: NextPage = () => {
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
       
-      // Refrescar tokens para mostrar el nuevo token
-      refreshTokens();
+    // Refrescar tokens para mostrar el nuevo token
+    refreshTokens();
+    refreshAllTokens();
     }
     
     if (daoCreated === 'true') {
@@ -161,7 +196,7 @@ const PerfilPage: NextPage = () => {
       // Refrescar DAOs para mostrar el nuevo DAO
       refreshDAOs();
     }
-  }, [refreshTokens, refreshDAOs]);
+  }, [refreshTokens, refreshDAOs, refreshAllTokens]);
 
   // Función para formatear fecha de registro
   const formatJoinDate = (timestamp: number | bigint) => {
@@ -223,6 +258,7 @@ const PerfilPage: NextPage = () => {
   const handleTokenSent = () => {
     // Refrescar la lista de tokens para actualizar balances
     refreshTokens();
+    refreshAllTokens();
   };
 
   // Componente para mostrar cada DAO individual
@@ -357,12 +393,15 @@ const PerfilPage: NextPage = () => {
       functionName: 'decimals',
     });
 
-    // Leer balance del usuario para este token
+    // Leer balance del usuario objetivo para este token
     const { data: userBalance, refetch: refetchUserBalance } = useContractRead({
       address: token.tokenAddress as `0x${string}`,
       abi: SimpleERC20Contract.abi,
       functionName: 'balanceOf',
-      args: address ? [address] : ['0x0000000000000000000000000000000000000000'],
+      args: targetUserAddress ? [targetUserAddress] : ['0x0000000000000000000000000000000000000000'],
+      query: {
+        enabled: !!targetUserAddress, // Solo ejecutar cuando tengamos una dirección válida
+      },
     });
 
     return (
@@ -451,8 +490,30 @@ const PerfilPage: NextPage = () => {
         <div className="container mx-auto px-3 py-6">
           <div className="max-w-4xl mx-auto">
             
-            {/* Si no está conectado, redirigir o mostrar mensaje */}
-            {!isConnected ? (
+            {/* Mostrar loading mientras el router se inicializa */}
+            {!router.isReady ? (
+              <>
+                {/* Skeleton para la imagen de portada */}
+                <div className="h-48 bg-muted rounded-lg mb-4 animate-pulse"></div>
+                
+                {/* Skeleton para el perfil */}
+                <Card className="p-6">
+                  <CardContent className="p-0">
+                    <div className="flex flex-col md:flex-row items-start space-y-4 md:space-y-0 md:space-x-6">
+                      {/* Avatar skeleton */}
+                      <div className="w-24 h-24 bg-muted rounded-full animate-pulse"></div>
+                      
+                      {/* Información skeleton */}
+                      <div className="flex-1 space-y-3">
+                        <div className="h-6 bg-muted rounded animate-pulse w-1/3"></div>
+                        <div className="h-4 bg-muted rounded animate-pulse w-1/2"></div>
+                        <div className="h-4 bg-muted rounded animate-pulse w-2/3"></div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : !isConnected && !urlUser ? (
               <div className="max-w-md mx-auto">
                 <Card className="p-6">
                   <CardContent className="p-0">
@@ -466,6 +527,29 @@ const PerfilPage: NextPage = () => {
                         </h3>
                         <p className="text-sm text-muted-foreground mb-4">
                           Conecta tu wallet para ver tu perfil
+                        </p>
+                        <Button onClick={() => router.push('/')}>
+                          Ir al Dashboard
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : !targetUserAddress ? (
+              <div className="max-w-md mx-auto">
+                <Card className="p-6">
+                  <CardContent className="p-0">
+                    <div className="text-center space-y-4">
+                      <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center mx-auto">
+                        <User className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground mb-2">
+                          Usuario no encontrado
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          No se ha proporcionado una dirección de usuario válida
                         </p>
                         <Button onClick={() => router.push('/')}>
                           Ir al Dashboard
@@ -546,17 +630,19 @@ const PerfilPage: NextPage = () => {
               {/* Overlay con gradiente */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
               
-              {/* Botón de edición en la esquina superior derecha */}
-              <div className="absolute top-4 right-4">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="bg-white/90 hover:bg-white text-black"
-                  onClick={() => router.push('/editar-perfil')}
-                >
-                  <Edit3 className="w-4 h-4" />
-                </Button>
-              </div>
+              {/* Botón de edición en la esquina superior derecha - solo si es el perfil del usuario conectado */}
+              {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() && (
+                <div className="absolute top-4 right-4">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="bg-white/90 hover:bg-white text-black"
+                    onClick={() => router.push('/editar-perfil')}
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Avatar flotante centrado - fuera del contenedor con overflow-hidden */}
@@ -765,15 +851,17 @@ const PerfilPage: NextPage = () => {
                 <Building2 className="w-5 h-5" />
                 <span>Mis DAOs</span>
               </h2>
-              <Button
-                variant="default"
-                size="sm"
-                className="bg-orange-600 hover:bg-orange-700 text-white"
-                onClick={() => router.push('/crear-dao')}
-              >
-                <Building2 className="w-4 h-4 mr-2" />
-                Crear Nuevo DAO
-              </Button>
+              {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                  onClick={() => router.push('/crear-dao')}
+                >
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Crear Nuevo DAO
+                </Button>
+              )}
             </div>
 
             <ClientOnly fallback={
@@ -808,20 +896,32 @@ const PerfilPage: NextPage = () => {
                   </p>
                 </div>
               ) : userDAOs.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Building2 className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-medium text-foreground mb-2">
-                    No has creado DAOs aún
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Crea tu primera organización autónoma descentralizada
-                  </p>
-                  <Button onClick={() => router.push('/crear-dao')}>
-                    Crear DAO
-                  </Button>
-                </div>
+                <Card className="p-8">
+                  <CardContent className="p-0">
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Building2 className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-medium text-foreground mb-2">
+                        {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() 
+                          ? 'No has creado DAOs aún'
+                          : 'Este usuario no ha creado DAOs aún'
+                        }
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() 
+                          ? 'Crea tu primera organización autónoma descentralizada'
+                          : 'Este usuario no ha creado DAOs aún'
+                        }
+                      </p>
+                      {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() && (
+                        <Button onClick={() => router.push('/crear-dao')}>
+                          Crear DAO
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
                 <div className="space-y-3">
                   {userDAOs.map((dao, index) => (
@@ -839,15 +939,17 @@ const PerfilPage: NextPage = () => {
                 <Coins className="w-5 h-5" />
                 <span>Mis Tokens</span>
               </h2>
-              <Button
-                variant="default"
-                size="sm"
-                className="bg-black hover:bg-gray-800 text-white"
-                onClick={() => router.push('/crear-token')}
-              >
-                <Coins className="w-4 h-4 mr-2" />
-                Crear Nuevo Token
-              </Button>
+              {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-black hover:bg-gray-800 text-white"
+                  onClick={() => router.push('/crear-token')}
+                >
+                  <Coins className="w-4 h-4 mr-2" />
+                  Crear Nuevo Token
+                </Button>
+              )}
             </div>
 
               <ClientOnly fallback={
@@ -887,14 +989,22 @@ const PerfilPage: NextPage = () => {
                       <Coins className="w-8 h-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground mb-2">
-                      No has creado tokens aún
+                      {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() 
+                        ? 'No has creado tokens aún'
+                        : 'Este usuario no ha creado tokens aún'
+                      }
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Crea tu primer token personalizado para comenzar
+                      {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() 
+                        ? 'Crea tu primer token personalizado para comenzar'
+                        : 'Este usuario no ha creado tokens personalizados'
+                      }
                     </p>
-                    <Button onClick={() => router.push('/crear-token')}>
-                      Crear Token
-                    </Button>
+                    {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() && (
+                      <Button onClick={() => router.push('/crear-token')}>
+                        Crear Token
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -904,6 +1014,32 @@ const PerfilPage: NextPage = () => {
                   </div>
                 )}
               </ClientOnly>
+          </div>
+
+          {/* Sección de tokens con balance del usuario */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground flex items-center space-x-2">
+                <Coins className="w-5 h-5" />
+                <span>Tokens de la Comunidad</span>
+              </h2>
+            </div>
+
+            <ClientOnly fallback={
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-4 border rounded-lg animate-pulse">
+                    <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            }>
+              <CommunityTokensWithBalance
+                userAddress={targetUserAddress || ''}
+                onTokenClick={openTokenModal}
+              />
+            </ClientOnly>
           </div>
 
               </>

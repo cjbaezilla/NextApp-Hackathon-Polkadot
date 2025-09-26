@@ -14,9 +14,9 @@ interface TokenInfo {
   creationTimestamp: bigint;
 }
 
-export const useUserTokens = (userAddress?: string) => {
+export const useUserTokensWithBalance = (userAddress?: string) => {
   const { address, isConnected } = useAccount();
-  const [userTokens, setUserTokens] = useState<TokenInfo[]>([]);
+  const [allTokens, setAllTokens] = useState<TokenInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,48 +26,44 @@ export const useUserTokens = (userAddress?: string) => {
   // Dirección del contrato desde variable de entorno
   const factoryContractAddress = process.env.NEXT_PUBLIC_ERC20MEMBERSFACTORY_CONTRACT_ADDRESS as `0x${string}`;
 
-  // Leer tokens del usuario
-  const { data: tokensData, refetch: refetchTokens, isLoading: isLoadingTokens } = useContractRead({
+  // Leer todos los tokens del factory
+  const { data: allTokensData, refetch: refetchAllTokens, isLoading: isLoadingAllTokens } = useContractRead({
     address: factoryContractAddress,
     abi: ERC20MembersFactory.abi,
-    functionName: 'getUserTokens',
-    args: targetAddress ? [targetAddress] : ['0x0000000000000000000000000000000000000000'],
+    functionName: 'getAllTokens',
   });
 
-  // Leer cantidad de tokens del usuario
-  const { data: tokenCount, refetch: refetchTokenCount } = useContractRead({
-    address: factoryContractAddress,
-    abi: ERC20MembersFactory.abi,
-    functionName: 'getUserTokenCount',
-    args: targetAddress ? [targetAddress] : ['0x0000000000000000000000000000000000000000'],
-  });
-
-  // Efecto para procesar los datos de tokens
+  // Efecto para procesar los datos
   useEffect(() => {
-    if (tokensData && Array.isArray(tokensData)) {
-      try {
-        const processedTokens: TokenInfo[] = tokensData.map((token: any) => ({
-          tokenAddress: token.tokenAddress,
-          creator: token.creator,
-          name: token.name,
-          symbol: token.symbol,
-          initialSupply: token.initialSupply,
-          creationTimestamp: token.createdAt,
-        }));
-        
-        setUserTokens(processedTokens);
-        setError(null);
-      } catch (err) {
-        console.error('Error al procesar tokens del usuario:', err);
-        setError('Error al procesar los tokens');
-      }
-    } else if (tokensData === null || tokensData === undefined) {
-      setUserTokens([]);
-      setError(null);
+    if (!allTokensData || !Array.isArray(allTokensData) || !targetAddress) {
+      setAllTokens([]);
+      setIsLoading(isLoadingAllTokens);
+      return;
     }
-    
-    setIsLoading(isLoadingTokens);
-  }, [tokensData, isLoadingTokens, targetAddress]);
+
+    try {
+      setIsLoading(true);
+      
+      // Procesar tokens y convertirlos al formato correcto
+      const processedTokens: TokenInfo[] = allTokensData.map((token: any) => ({
+        tokenAddress: token.tokenAddress,
+        creator: token.creator,
+        name: token.name,
+        symbol: token.symbol,
+        initialSupply: token.initialSupply,
+        creationTimestamp: token.createdAt,
+      }));
+      
+      setAllTokens(processedTokens);
+      setError(null);
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error al procesar tokens:', err);
+      setError('Error al procesar los tokens');
+      setAllTokens([]);
+      setIsLoading(false);
+    }
+  }, [allTokensData, isLoadingAllTokens, targetAddress]);
 
   // Función para formatear fecha
   const formatCreationDate = (timestamp: bigint) => {
@@ -125,7 +121,7 @@ export const useUserTokens = (userAddress?: string) => {
   // Función para refrescar datos
   const refreshTokens = async () => {
     try {
-      await Promise.all([refetchTokens(), refetchTokenCount()]);
+      await refetchAllTokens();
     } catch (err) {
       console.error('Error al refrescar tokens:', err);
       setError('Error al refrescar los tokens');
@@ -133,18 +129,16 @@ export const useUserTokens = (userAddress?: string) => {
   };
 
   return {
-    userTokens,
-    tokenCount: tokenCount ? Number(tokenCount) : 0,
+    allTokens,
+    tokensCount: allTokens.length,
     isLoading,
     error,
     isConnected,
     address,
-    refreshTokens,
+    refreshTokens: refetchAllTokens,
     formatCreationDate,
     formatInitialSupply,
     formatBalance,
     shortenAddress
   };
 };
-
-

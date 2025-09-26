@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useContractRead, useAccount } from 'wagmi';
 import { readContract } from '@wagmi/core';
 import { config } from '@/wagmi';
@@ -19,11 +19,14 @@ interface DAOInfo {
   owner: string;
 }
 
-export const useUserDAOs = () => {
+export const useUserDAOs = (userAddress?: string) => {
   const { address, isConnected } = useAccount();
   const [userDAOs, setUserDAOs] = useState<DAOInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Usar la dirección proporcionada o la del usuario conectado
+  const targetAddress = userAddress || address;
 
   // Dirección del contrato desde variable de entorno
   const factoryContractAddress = process.env.NEXT_PUBLIC_DAOMEMBERSFACTORY_CONTRACT_ADDRESS as `0x${string}`;
@@ -36,7 +39,7 @@ export const useUserDAOs = () => {
   });
 
   // Función para obtener el creador de un DAO específico
-  const getDAOCreator = async (daoAddress: string): Promise<string | null> => {
+  const getDAOCreator = useCallback(async (daoAddress: string): Promise<string | null> => {
     try {
       const creator = await readContract(config, {
         address: factoryContractAddress,
@@ -49,11 +52,11 @@ export const useUserDAOs = () => {
       console.error(`Error al obtener creador del DAO ${daoAddress}:`, err);
       return null;
     }
-  };
+  }, [factoryContractAddress]);
 
   // Efecto para procesar los DAOs del usuario
   useEffect(() => {
-    if (allDAOs && Array.isArray(allDAOs) && address) {
+    if (allDAOs && Array.isArray(allDAOs) && targetAddress) {
       setIsLoading(true);
       setError(null);
 
@@ -71,14 +74,14 @@ export const useUserDAOs = () => {
           // Esperar a que todas las verificaciones se completen
           const creators = await Promise.all(creatorPromises);
 
-          // Filtrar solo los DAOs creados por el usuario actual
+          // Filtrar solo los DAOs creados por el usuario objetivo
           const userDAOsList: DAOInfo[] = [];
           
           for (let i = 0; i < validDAOs.length; i++) {
             const daoAddress = validDAOs[i];
             const creator = creators[i];
             
-            if (creator && creator.toLowerCase() === address.toLowerCase()) {
+            if (creator && creator.toLowerCase() === targetAddress.toLowerCase()) {
               userDAOsList.push({
                 daoAddress: daoAddress,
                 creator: creator,
@@ -103,11 +106,11 @@ export const useUserDAOs = () => {
       };
 
       processUserDAOs();
-    } else if (!address) {
+    } else if (!targetAddress) {
       setUserDAOs([]);
       setIsLoading(false);
     }
-  }, [allDAOs, address]);
+  }, [allDAOs, targetAddress, getDAOCreator]);
 
   // Función para formatear fecha
   const formatCreationDate = (timestamp: bigint) => {

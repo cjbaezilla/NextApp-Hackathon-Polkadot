@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useContractRead, useAccount } from 'wagmi';
+import { useContractRead } from 'wagmi';
 import { formatEther } from 'viem';
 
 // Cargar ABI desde variable de entorno
 const ERC20MembersFactory = require(process.env.NEXT_PUBLIC_ERC20MEMBERSFACTORY_CONTRACT_ABI_PATH!);
+const SimpleERC20Contract = require(process.env.NEXT_PUBLIC_SIMPLEERC20_CONTRACT_ABI_PATH!);
 
 interface TokenInfo {
   tokenAddress: string;
@@ -12,62 +13,73 @@ interface TokenInfo {
   symbol: string;
   initialSupply: bigint;
   creationTimestamp: bigint;
+  userBalance: bigint;
+  decimals: number;
 }
 
-export const useUserTokens = (userAddress?: string) => {
-  const { address, isConnected } = useAccount();
-  const [userTokens, setUserTokens] = useState<TokenInfo[]>([]);
+export const useCommunityTokensWithBalance = (userAddress?: string) => {
+  const [communityTokens, setCommunityTokens] = useState<TokenInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Usar la dirección proporcionada o la del usuario conectado
-  const targetAddress = userAddress || address;
 
   // Dirección del contrato desde variable de entorno
   const factoryContractAddress = process.env.NEXT_PUBLIC_ERC20MEMBERSFACTORY_CONTRACT_ADDRESS as `0x${string}`;
 
-  // Leer tokens del usuario
-  const { data: tokensData, refetch: refetchTokens, isLoading: isLoadingTokens } = useContractRead({
+  // Leer todos los tokens del factory
+  const { data: allTokensData, refetch: refetchAllTokens, isLoading: isLoadingAllTokens } = useContractRead({
     address: factoryContractAddress,
     abi: ERC20MembersFactory.abi,
-    functionName: 'getUserTokens',
-    args: targetAddress ? [targetAddress] : ['0x0000000000000000000000000000000000000000'],
+    functionName: 'getAllTokens',
   });
 
-  // Leer cantidad de tokens del usuario
-  const { data: tokenCount, refetch: refetchTokenCount } = useContractRead({
-    address: factoryContractAddress,
-    abi: ERC20MembersFactory.abi,
-    functionName: 'getUserTokenCount',
-    args: targetAddress ? [targetAddress] : ['0x0000000000000000000000000000000000000000'],
-  });
-
-  // Efecto para procesar los datos de tokens
+  // Efecto para procesar los datos y filtrar tokens de la comunidad con balance
   useEffect(() => {
-    if (tokensData && Array.isArray(tokensData)) {
+    if (!allTokensData || !Array.isArray(allTokensData) || !userAddress) {
+      setCommunityTokens([]);
+      setIsLoading(isLoadingAllTokens);
+      return;
+    }
+
+    const processTokens = async () => {
       try {
-        const processedTokens: TokenInfo[] = tokensData.map((token: any) => ({
+        setIsLoading(true);
+        
+        // Procesar tokens y convertirlos al formato correcto
+        const processedTokens: TokenInfo[] = allTokensData.map((token: any) => ({
           tokenAddress: token.tokenAddress,
           creator: token.creator,
           name: token.name,
           symbol: token.symbol,
           initialSupply: token.initialSupply,
           creationTimestamp: token.createdAt,
+          userBalance: BigInt(0), // Se llenará después
+          decimals: 18 // Valor por defecto, se actualizará
         }));
-        
-        setUserTokens(processedTokens);
+
+        // Filtrar tokens que NO son del usuario actual
+        const communityTokensOnly = processedTokens.filter(token => 
+          token.creator.toLowerCase() !== userAddress.toLowerCase()
+        );
+
+        // Por ahora, solo mostrar tokens de la comunidad sin verificar balance
+        // TODO: Implementar verificación de balance usando wagmi hooks
+        setCommunityTokens(communityTokensOnly.map(token => ({
+          ...token,
+          userBalance: BigInt(0),
+          decimals: 18
+        })));
         setError(null);
+        setIsLoading(false);
       } catch (err) {
-        console.error('Error al procesar tokens del usuario:', err);
-        setError('Error al procesar los tokens');
+        console.error('Error al procesar tokens de la comunidad:', err);
+        setError('Error al procesar los tokens de la comunidad');
+        setCommunityTokens([]);
+        setIsLoading(false);
       }
-    } else if (tokensData === null || tokensData === undefined) {
-      setUserTokens([]);
-      setError(null);
-    }
-    
-    setIsLoading(isLoadingTokens);
-  }, [tokensData, isLoadingTokens, targetAddress]);
+    };
+
+    processTokens();
+  }, [allTokensData, isLoadingAllTokens, userAddress]);
 
   // Función para formatear fecha
   const formatCreationDate = (timestamp: bigint) => {
@@ -84,28 +96,23 @@ export const useUserTokens = (userAddress?: string) => {
 
   // Función para formatear el suministro inicial
   const formatInitialSupply = (supply: bigint) => {
-    // Los tokens ERC20 tienen 18 decimales por defecto
     const decimals = 18;
     const divisor = BigInt(10 ** decimals);
     
-    // Convertir de wei a la unidad principal del token
     const wholePart = supply / divisor;
     const fractionalPart = supply % divisor;
     
-    // Si no hay parte fraccionaria significativa, mostrar solo la parte entera
     if (fractionalPart === BigInt(0)) {
       return wholePart.toLocaleString('es-ES');
     }
     
-    // Convertir la parte fraccionaria a decimales
     const fractionalString = fractionalPart.toString().padStart(decimals, '0');
-    const trimmedFractional = fractionalString.replace(/0+$/, ''); // Quitar ceros al final
+    const trimmedFractional = fractionalString.replace(/0+$/, '');
     
     if (trimmedFractional === '') {
       return wholePart.toLocaleString('es-ES');
     }
     
-    // Combinar parte entera y fraccionaria
     const result = `${wholePart.toLocaleString('es-ES')}.${trimmedFractional}`;
     return result;
   };
@@ -125,7 +132,7 @@ export const useUserTokens = (userAddress?: string) => {
   // Función para refrescar datos
   const refreshTokens = async () => {
     try {
-      await Promise.all([refetchTokens(), refetchTokenCount()]);
+      await refetchAllTokens();
     } catch (err) {
       console.error('Error al refrescar tokens:', err);
       setError('Error al refrescar los tokens');
@@ -133,12 +140,10 @@ export const useUserTokens = (userAddress?: string) => {
   };
 
   return {
-    userTokens,
-    tokenCount: tokenCount ? Number(tokenCount) : 0,
+    communityTokens,
+    tokensCount: communityTokens.length,
     isLoading,
     error,
-    isConnected,
-    address,
     refreshTokens,
     formatCreationDate,
     formatInitialSupply,
@@ -146,5 +151,3 @@ export const useUserTokens = (userAddress?: string) => {
     shortenAddress
   };
 };
-
-
