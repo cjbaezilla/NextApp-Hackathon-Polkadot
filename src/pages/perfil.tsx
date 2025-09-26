@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { TokenIcon } from '@/components/ui/token-icon';
+import { DAOAvatar } from '@/components/ui/dao-avatar';
 import { 
   User, 
   Mail, 
@@ -25,18 +26,20 @@ import {
   Coins,
   CheckCircle,
   X,
-  Settings
+  Settings,
+  Building2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useContractRead, useAccount } from 'wagmi';
 import { useRouter } from 'next/router';
 import ClientOnly from '@/components/ClientOnly';
 import TokenExplorerModal from '@/components/TokenExplorerModal';
-import { useUserDAOProposalsOptimized } from '@/hooks/useUserDAOProposals';
 import { useUserTokens } from '@/hooks/useUserTokens';
+import { useUserDAOs } from '@/hooks/useUserDAOs';
 import UsersContract from '@/contracts/UsersContract.json';
 import NFTContract from '@/contracts/NFTContract.json';
 import SimpleERC20Contract from '@/contracts/SimpleERC20.json';
+import DAOContract from '@/contracts/DAOContract.json';
 
 // Interfaz para los datos del usuario
 interface UserInfo {
@@ -59,11 +62,21 @@ const PerfilPage: NextPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const [showTokenSuccessMessage, setShowTokenSuccessMessage] = useState(false);
+  const [showDAOSuccessMessage, setShowDAOSuccessMessage] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Hook para obtener la cantidad de propuestas DAO del usuario
-  const { userProposalsCount, isLoading: isLoadingProposals } = useUserDAOProposalsOptimized();
+
+  // Hook para obtener DAOs del usuario
+  const { 
+    userDAOs, 
+    daoCount, 
+    isLoading: isLoadingDAOs, 
+    error: daosError,
+    refreshDAOs,
+    formatCreationDate: formatDAOCreationDate,
+    shortenAddress: shortenDAOAddress
+  } = useUserDAOs();
 
   // Hook para obtener tokens del usuario
   const { 
@@ -123,10 +136,11 @@ const PerfilPage: NextPage = () => {
     }
   }, [userData, userRegistered]);
 
-  // Efecto para mostrar mensaje de éxito si se viene de crear un token
+  // Efecto para mostrar mensajes de éxito si se viene de crear un token o DAO
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenCreated = urlParams.get('tokenCreated');
+    const daoCreated = urlParams.get('daoCreated');
     
     if (tokenCreated === 'true') {
       setShowTokenSuccessMessage(true);
@@ -137,7 +151,17 @@ const PerfilPage: NextPage = () => {
       // Refrescar tokens para mostrar el nuevo token
       refreshTokens();
     }
-  }, [refreshTokens]);
+    
+    if (daoCreated === 'true') {
+      setShowDAOSuccessMessage(true);
+      // Limpiar el parámetro de la URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      
+      // Refrescar DAOs para mostrar el nuevo DAO
+      refreshDAOs();
+    }
+  }, [refreshTokens, refreshDAOs]);
 
   // Función para formatear fecha de registro
   const formatJoinDate = (timestamp: number | bigint) => {
@@ -199,6 +223,129 @@ const PerfilPage: NextPage = () => {
   const handleTokenSent = () => {
     // Refrescar la lista de tokens para actualizar balances
     refreshTokens();
+  };
+
+  // Componente para mostrar cada DAO individual
+  const DAOItem = ({ dao, index }: { dao: any; index: number }) => {
+    // Leer información detallada del DAO usando wagmi
+    const { data: daoName } = useContractRead({
+      address: dao.daoAddress as `0x${string}`,
+      abi: DAOContract.abi,
+      functionName: 'name',
+    });
+
+    const { data: totalProposals } = useContractRead({
+      address: dao.daoAddress as `0x${string}`,
+      abi: DAOContract.abi,
+      functionName: 'getTotalProposals',
+    });
+
+    const { data: minProposalTokens } = useContractRead({
+      address: dao.daoAddress as `0x${string}`,
+      abi: DAOContract.abi,
+      functionName: 'MIN_PROPOSAL_CREATION_TOKENS',
+    });
+
+    const { data: minVotesToApprove } = useContractRead({
+      address: dao.daoAddress as `0x${string}`,
+      abi: DAOContract.abi,
+      functionName: 'MIN_VOTES_TO_APPROVE',
+    });
+
+    const { data: minTokensToApprove } = useContractRead({
+      address: dao.daoAddress as `0x${string}`,
+      abi: DAOContract.abi,
+      functionName: 'MIN_TOKENS_TO_APPROVE',
+    });
+
+
+    const { data: nftContract } = useContractRead({
+      address: dao.daoAddress as `0x${string}`,
+      abi: DAOContract.abi,
+      functionName: 'nftContract',
+    });
+
+    return (
+      <div key={index} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-3">
+            <DAOAvatar 
+              daoAddress={dao.daoAddress}
+              size="md"
+              alt={`Avatar del DAO ${dao.daoAddress}`}
+            />
+            <div>
+              <h3 className="font-semibold text-foreground">
+                {typeof daoName === 'string' ? daoName : `DAO #${index + 1}`}
+              </h3>
+              <p className="text-sm text-muted-foreground">Organización Autónoma Descentralizada</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-medium text-foreground">
+              {totalProposals ? Number(totalProposals) : 0} propuestas
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Activo
+            </p>
+          </div>
+        </div>
+
+        {/* Información detallada del DAO */}
+        <div className="grid grid-cols-3 gap-3 mb-3 text-xs">
+          <div className="bg-muted/30 rounded-lg p-2">
+            <div className="flex items-center space-x-1 mb-1">
+              <TrendingUp className="w-3 h-3 text-blue-600" />
+              <span className="font-medium text-foreground">Min. Propuestas</span>
+            </div>
+            <p className="text-muted-foreground">
+              {minProposalTokens ? Number(minProposalTokens) : 0} tokens
+            </p>
+          </div>
+          
+          <div className="bg-muted/30 rounded-lg p-2">
+            <div className="flex items-center space-x-1 mb-1">
+              <Users className="w-3 h-3 text-green-600" />
+              <span className="font-medium text-foreground">Min. Votos Únicos</span>
+            </div>
+            <p className="text-muted-foreground">
+              {minVotesToApprove ? Number(minVotesToApprove) : 0} votos
+            </p>
+          </div>
+
+          <div className="bg-muted/30 rounded-lg p-2">
+            <div className="flex items-center space-x-1 mb-1">
+              <Award className="w-3 h-3 text-purple-600" />
+              <span className="font-medium text-foreground">Min. Poder Votación</span>
+            </div>
+            <p className="text-muted-foreground">
+              {minTokensToApprove ? Number(minTokensToApprove) : 0} tokens
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+            <span className="font-mono text-sm">{shortenDAOAddress(dao.daoAddress)}</span>
+            <button
+              onClick={() => navigator.clipboard.writeText(dao.daoAddress)}
+              className="p-1 rounded hover:bg-muted transition-colors"
+              title="Copiar dirección completa"
+            >
+              <Copy className="w-3 h-3" />
+            </button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/dao?address=${dao.daoAddress}`)}
+          >
+            <ExternalLink className="w-3 h-3 mr-1" />
+            Ver DAO
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   // Componente para mostrar cada token individual
@@ -530,17 +677,17 @@ const PerfilPage: NextPage = () => {
 
             <div className="p-4 bg-card rounded-lg border">
               <div className="text-center">
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center mx-auto mb-2">
-                  <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center mx-auto mb-2">
+                  <Building2 className="w-6 h-6 text-orange-600 dark:text-orange-400" />
                 </div>
                 <ClientOnly fallback={
                   <p className="text-2xl font-bold text-foreground">0</p>
                 }>
                   <p className="text-2xl font-bold text-foreground">
-                    {isLoadingProposals ? '...' : userProposalsCount}
+                    {isLoadingDAOs ? '...' : daoCount}
                   </p>
                 </ClientOnly>
-                <p className="text-sm text-muted-foreground">Propuestas DAO</p>
+                <p className="text-sm text-muted-foreground">DAOs Creados</p>
               </div>
             </div>
 
@@ -585,6 +732,105 @@ const PerfilPage: NextPage = () => {
               </div>
             </div>
           )}
+
+          {/* Mensaje de éxito para DAO creado - arriba de Mis DAOs */}
+          {showDAOSuccessMessage && (
+            <div className="mb-6 p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                      ¡DAO creado exitosamente!
+                    </p>
+                    <p className="text-xs text-green-700 dark:text-green-300">
+                      Tu DAO ha sido desplegado en la blockchain y ya aparece en tu perfil.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDAOSuccessMessage(false)}
+                  className="p-1 rounded hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors"
+                >
+                  <X className="w-4 h-4 text-green-600" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sección de DAOs del usuario */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground flex items-center space-x-2">
+                <Building2 className="w-5 h-5" />
+                <span>Mis DAOs</span>
+              </h2>
+              <Button
+                variant="default"
+                size="sm"
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+                onClick={() => router.push('/crear-dao')}
+              >
+                <Building2 className="w-4 h-4 mr-2" />
+                Crear Nuevo DAO
+              </Button>
+            </div>
+
+            <ClientOnly fallback={
+              <div className="space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="p-4 border rounded-lg animate-pulse">
+                    <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
+                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            }>
+              {isLoadingDAOs ? (
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="p-4 border rounded-lg animate-pulse">
+                      <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
+                      <div className="h-3 bg-muted rounded w-1/2"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : daosError ? (
+                <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <X className="w-4 h-4 text-red-600" />
+                    <span className="text-sm font-medium text-red-800 dark:text-red-200">
+                      Error al cargar DAOs
+                    </span>
+                  </div>
+                  <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                    {daosError}
+                  </p>
+                </div>
+              ) : userDAOs.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Building2 className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-medium text-foreground mb-2">
+                    No has creado DAOs aún
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Crea tu primera organización autónoma descentralizada
+                  </p>
+                  <Button onClick={() => router.push('/crear-dao')}>
+                    Crear DAO
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {userDAOs.map((dao, index) => (
+                    <DAOItem key={index} dao={dao} index={index} />
+                  ))}
+                </div>
+              )}
+            </ClientOnly>
+          </div>
 
           {/* Sección de tokens del usuario */}
           <div className="mb-6">

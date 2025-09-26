@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Users, Vote, FileText, CheckCircle, XCircle, Clock, Plus, ExternalLink, Calendar, User, ThumbsUp, ThumbsDown, X } from 'lucide-react';
 import { useContractRead, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import ClientOnly from '@/components/ClientOnly';
-import { useDAOProposals, useProposal, useAllProposals, useAllProposalDetails, DAOProposal, ProposalDetails, ProposalStatus } from '@/hooks/useDAOProposals';
-import { useUserVotingStatus } from '@/hooks/useUserVotingStatus';
+import { useDAOProposalsWithAddress, useAllProposalsWithAddress, useAllProposalDetailsWithAddress, DAOProposal, ProposalDetails, ProposalStatus } from '@/hooks/useDAOProposalsWithAddress';
+import { useUserVotingStatusWithAddress } from '@/hooks/useUserVotingStatusWithAddress';
+import { useDAOAddress } from '@/hooks/useDAOAddress';
 import { useRouter } from 'next/router';
 const DAOContract = require(process.env.NEXT_PUBLIC_DAO_CONTRACT_ABI_PATH!);
 
@@ -17,8 +18,8 @@ const DAOPage: NextPage = () => {
   const { address, isConnected } = useAccount();
   const router = useRouter();
   
-  // Dirección del contrato DAO desde variables de entorno
-  const daoContractAddress = process.env.NEXT_PUBLIC_DAO_CONTRACT_ADDRESS as `0x${string}`;
+  // Obtener dirección del contrato DAO desde URL o variables de entorno
+  const daoContractAddress = useDAOAddress();
   
   // Estados para votación
   const [votingProposal, setVotingProposal] = useState<number | null>(null);
@@ -28,13 +29,13 @@ const DAOPage: NextPage = () => {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   // Hook para obtener propuestas
-  const { totalProposals, isLoadingTotal } = useDAOProposals();
+  const { totalProposals, isLoadingTotal } = useDAOProposalsWithAddress(daoContractAddress);
   
   // Hook para obtener todas las propuestas
-  const { proposals: allProposals, isLoading: isLoadingProposals, error: proposalsError } = useAllProposals();
+  const { proposals: allProposals, isLoading: isLoadingProposals, error: proposalsError } = useAllProposalsWithAddress(daoContractAddress);
   
   // Hook para obtener detalles completos de las propuestas
-  const { proposalDetails, isLoading: isLoadingDetails, error: detailsError } = useAllProposalDetails();
+  const { proposalDetails, isLoading: isLoadingDetails, error: detailsError } = useAllProposalDetailsWithAddress(daoContractAddress);
 
   // Leer datos del contrato DAO
   const { data: minimumVotesToApprove } = useContractRead({
@@ -55,6 +56,13 @@ const DAOPage: NextPage = () => {
     abi: DAOContract.abi,
     functionName: 'getVotingPower',
     args: address ? [address] : undefined,
+  });
+
+  // Obtener nombre del DAO
+  const { data: daoName } = useContractRead({
+    address: daoContractAddress,
+    abi: DAOContract.abi,
+    functionName: 'name',
   });
 
   // Función para votar
@@ -97,8 +105,10 @@ const DAOPage: NextPage = () => {
   useEffect(() => {
     if (router.query.proposalCreated === 'true') {
       setShowSuccessMessage(true);
-      // Limpiar el parámetro de la URL
-      router.replace('/dao', undefined, { shallow: true });
+      // Limpiar el parámetro de la URL pero mantener la dirección del DAO
+      const currentAddress = router.query.address;
+      const newQuery = currentAddress ? { address: currentAddress } : {};
+      router.replace({ pathname: '/dao', query: newQuery }, undefined, { shallow: true });
     }
   }, [router]);
 
@@ -187,7 +197,7 @@ const DAOPage: NextPage = () => {
 
   // Componente para botones de votación con verificación de estado
   const VotingButtons = ({ proposalId, status }: { proposalId: number; status: ProposalStatus }) => {
-    const { hasVoted, isLoading: isLoadingVotingStatus } = useUserVotingStatus(proposalId);
+    const { hasVoted, isLoading: isLoadingVotingStatus } = useUserVotingStatusWithAddress(proposalId, daoContractAddress);
     const isCurrentlyVoting = votingProposal === proposalId && isVoting;
     const userHasVoted = hasVoted === true;
 
@@ -323,7 +333,7 @@ const DAOPage: NextPage = () => {
             Gobierno de la comunidad
             </p>
           </div>
-          <Link href="/nueva-propuesta">
+          <Link href={`/nueva-propuesta?address=${daoContractAddress}`}>
             <Button className="text-xs px-3 py-2 h-auto">
               <Plus className="w-3 h-3 mr-1" />
               Nueva Propuesta
@@ -485,7 +495,7 @@ const DAOPage: NextPage = () => {
         <div className="max-w-4xl mx-auto">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-foreground mb-2">
-              Propuestas DAO
+              Propuestas: {String(daoName || 'DAO')}
             </h2>
           </div>
 
@@ -515,7 +525,7 @@ const DAOPage: NextPage = () => {
                   <p className="text-muted-foreground text-sm mb-4">
                     Aún no se han creado propuestas en este DAO.
                   </p>
-                  <Link href="/nueva-propuesta">
+                  <Link href={`/nueva-propuesta?address=${daoContractAddress}`}>
                     <Button>
                       <Plus className="w-4 h-4 mr-2" />
                       Crear Primera Propuesta

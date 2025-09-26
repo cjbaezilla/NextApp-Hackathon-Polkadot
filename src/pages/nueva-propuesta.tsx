@@ -8,6 +8,7 @@ import DatePicker from '@/components/ui/date-picker';
 import { ArrowLeft, FileText, Clock, User, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { useContractRead, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import ClientOnly from '@/components/ClientOnly';
+import { useDAOAddress } from '@/hooks/useDAOAddress';
 import { useRouter } from 'next/router';
 
 // Importar ABI del contrato DAO
@@ -17,8 +18,8 @@ const NuevaPropuestaPage: NextPage = () => {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   
-  // Dirección del contrato DAO desde variables de entorno
-  const daoContractAddress = process.env.NEXT_PUBLIC_DAO_CONTRACT_ADDRESS as `0x${string}`;
+  // Obtener dirección del contrato DAO desde URL o variables de entorno
+  const daoContractAddress = useDAOAddress();
   
   // Estados del formulario
   const [formData, setFormData] = useState({
@@ -200,8 +201,10 @@ const NuevaPropuestaPage: NextPage = () => {
   useEffect(() => {
     if (isConfirmed) {
       setIsSubmitting(false);
-      // Redirigir inmediatamente sin mostrar mensaje de éxito
-      router.push('/dao?proposalCreated=true');
+      // Redirigir inmediatamente sin mostrar mensaje de éxito, manteniendo la dirección del DAO
+      const currentAddress = router.query.address;
+      const queryParams = currentAddress ? `?address=${currentAddress}&proposalCreated=true` : '?proposalCreated=true';
+      router.push(`/dao${queryParams}`);
     }
   }, [isConfirmed, router]);
 
@@ -260,7 +263,7 @@ const NuevaPropuestaPage: NextPage = () => {
                 Crea una nueva propuesta
               </p>
             </div>
-            <Link href="/dao">
+            <Link href={`/dao${router.query.address ? `?address=${router.query.address}` : ''}`}>
               <Button variant="ghost" size="sm" className="text-xs">
                 <ArrowLeft className="w-3 h-3 mr-1" />
                 Volver al DAO
@@ -421,7 +424,7 @@ const NuevaPropuestaPage: NextPage = () => {
 
                 {/* Botones */}
                 <div className="flex space-x-3 pt-4">
-                  <Link href="/dao" className="flex-1">
+                  <Link href={`/dao${router.query.address ? `?address=${router.query.address}` : ''}`} className="flex-1">
                     <Button 
                       type="button" 
                       variant="outline" 

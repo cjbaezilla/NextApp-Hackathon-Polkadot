@@ -3,6 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { TokenIcon } from '@/components/ui/token-icon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,8 +11,12 @@ import { Plus, Users, User, Mail, Twitter, Github, MessageCircle, Calendar, Exte
 import { useState, useEffect } from 'react';
 import { useContractRead, useAccount } from 'wagmi';
 import ClientOnly from '@/components/ClientOnly';
-import { useUsersData, UserInfo } from '@/hooks/useUsersData';
+import { useAllUsers, UserInfo } from '@/hooks/useAllUsers';
 import { useERC20Tokens, TokenInfo } from '@/hooks/useERC20Tokens';
+import { useAllDAOs, DAOInfo } from '@/hooks/useAllDAOs';
+import { DAOItem } from '@/components/DAOItem';
+import TokenInfoModal from '@/components/TokenInfoModal';
+import DAOInfoModal from '@/components/DAOInfoModal';
 
 // Cargar ABI del contrato desde variable de entorno
 const UsersContract = require(process.env.NEXT_PUBLIC_USERS_CONTRACT_ABI_PATH!);
@@ -19,62 +24,8 @@ const UsersContract = require(process.env.NEXT_PUBLIC_USERS_CONTRACT_ABI_PATH!);
 // Dirección del contrato ERC20MembersFactory desde variables de entorno
 const ERC20FactoryAddress = process.env.NEXT_PUBLIC_ERC20MEMBERSFACTORY_CONTRACT_ADDRESS as `0x${string}`;
 
-// Datos de ejemplo para proyectos NFT
-const nftProjects = [
-  {
-    id: 1,
-    name: 'PolkaPunks',
-    address: '0x1234...5678',
-    price: '2.5 DOT',
-    change: '+12.5%',
-    volume: '1,250 DOT'
-  },
-  {
-    id: 2,
-    name: 'DotArt Collection',
-    address: '0xabcd...efgh',
-    price: '1.8 DOT',
-    change: '+8.3%',
-    volume: '890 DOT'
-  },
-  {
-    id: 3,
-    name: 'Substrate Heroes',
-    address: '0x9876...5432',
-    price: '3.2 DOT',
-    change: '-2.1%',
-    volume: '2,100 DOT'
-  }
-];
 
 
-// Datos de ejemplo para DAOs
-const daos = [
-  {
-    id: 1,
-    name: 'PolkaDAO',
-    address: '0xaaaa...bbbb',
-    members: '1,250',
-    proposals: '45',
-    treasury: '12.5K DOT'
-  },
-  {
-    id: 2,
-    name: 'Substrate',
-    address: '0xcccc...dddd',
-    members: '890',
-    proposals: '32',
-    treasury: '8.7K DOT'
-  },
-  {
-    id: 3,
-    name: 'Dot Community',
-    address: '0xeeee...ffff',
-    members: '2,100',
-    proposals: '67',
-    treasury: '25.3K DOT'
-  }
-];
 
 // Datos de ejemplo para Pools
 const pools = [
@@ -109,6 +60,10 @@ const Home: NextPage = () => {
   const { address, isConnected } = useAccount();
   const [selectedUser, setSelectedUser] = useState<UserInfo | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<TokenInfo | null>(null);
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [selectedDAO, setSelectedDAO] = useState<DAOInfo | null>(null);
+  const [showDAOModal, setShowDAOModal] = useState(false);
 
   // Dirección del contrato desde variables de entorno
   const contractAddress = process.env.NEXT_PUBLIC_USERS_CONTRACT_ADDRESS as `0x${string}`;
@@ -121,6 +76,14 @@ const Home: NextPage = () => {
     error: tokensError 
   } = useERC20Tokens(ERC20FactoryAddress, 3);
 
+  // Usar el hook personalizado para obtener DAOs
+  const { 
+    allDAOs, 
+    totalDAOs: totalDAOsCreated, 
+    isLoading: isLoadingDAOs, 
+    error: daosError
+  } = useAllDAOs(3);
+
   // Leer datos del contrato
   const { data: totalMembers } = useContractRead({
     address: contractAddress,
@@ -128,17 +91,12 @@ const Home: NextPage = () => {
     functionName: 'getTotalMembers',
   });
 
-  const { data: allUsersAddresses } = useContractRead({
-    address: contractAddress,
-    abi: UsersContract.abi,
-    functionName: 'getAllUsers',
-  });
-
   // Usar el hook personalizado para cargar datos de usuarios
-  const { usersData: registeredUsers, isLoading: isLoadingUsers, error: usersError } = useUsersData(
-    Array.isArray(allUsersAddresses) ? allUsersAddresses : [],
-    12
-  );
+  const { 
+    allUsers: registeredUsers, 
+    isLoading: isLoadingUsers, 
+    error: usersError 
+  } = useAllUsers(3);
 
   const handleRegisterClick = () => {
     router.push('/registro');
@@ -152,6 +110,26 @@ const Home: NextPage = () => {
   const closeUserModal = () => {
     setShowUserModal(false);
     setSelectedUser(null);
+  };
+
+  const handleTokenClick = (token: TokenInfo) => {
+    setSelectedToken(token);
+    setShowTokenModal(true);
+  };
+
+  const closeTokenModal = () => {
+    setShowTokenModal(false);
+    setSelectedToken(null);
+  };
+
+  const handleDAOClick = (dao: DAOInfo) => {
+    setSelectedDAO(dao);
+    setShowDAOModal(true);
+  };
+
+  const closeDAOModal = () => {
+    setShowDAOModal(false);
+    setSelectedDAO(null);
   };
 
   // Función para obtener iniciales del usuario
@@ -255,7 +233,11 @@ const Home: NextPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">DAOs Creadas</p>
-                    <p className="text-lg font-bold text-foreground">456</p>
+                    <p className="text-lg font-bold text-foreground">
+                      <ClientOnly fallback="0">
+                        {totalDAOsCreated.toString()}
+                      </ClientOnly>
+                    </p>
                   </div>
                   <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
                     <span className="text-white text-xs font-bold">D</span>
@@ -270,7 +252,7 @@ const Home: NextPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">LP Pools</p>
-                    <p className="text-lg font-bold text-foreground">789</p>
+                    <p className="text-lg font-bold text-foreground">Pronto</p>
                   </div>
                   <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
                     <span className="text-white text-xs font-bold">L</span>
@@ -286,7 +268,7 @@ const Home: NextPage = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Total Value Locked (TVL)</p>
-                  <p className="text-2xl font-bold text-foreground">$12.4M</p>
+                  <p className="text-2xl font-bold text-foreground">Pronto</p>
                 </div>
                 <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-cyan-500 rounded-xl flex items-center justify-center">
                   <span className="text-white text-lg font-bold">$</span>
@@ -298,38 +280,102 @@ const Home: NextPage = () => {
 
         {/* Sección de cuatro columnas compacta */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Fila superior */}
+          {/* Fila superior - Nuevos Miembros */}
           <div className="space-y-2">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-foreground">
-                Nuevos Proyectos NFT
+                Nuevos Miembros
               </h2>
             </div>
             
             <div className="space-y-2">
-              {nftProjects.map((project) => (
-                <Card key={project.id} className="p-2 hover:shadow-md hover:shadow-primary/5 transition-all duration-200">
-                  <CardContent className="p-0">
-                    <div className="flex items-center space-x-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                          {project.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xs font-medium text-card-foreground mb-1">
-                          {project.name}
-                        </h3>
-                        
-                        <p className="text-xs text-muted-foreground truncate">
-                          {project.address}
-                        </p>
+              <ClientOnly fallback={
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i} className="p-2">
+                      <CardContent className="p-0">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-muted rounded-full animate-pulse"></div>
+                          <div className="flex-1 space-y-1">
+                            <div className="h-3 bg-muted rounded animate-pulse w-3/4"></div>
+                            <div className="h-2 bg-muted rounded animate-pulse w-1/2"></div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              }>
+                {isLoadingUsers ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i} className="p-2">
+                        <CardContent className="p-0">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 bg-muted rounded-full animate-pulse"></div>
+                            <div className="flex-1 space-y-1">
+                              <div className="h-3 bg-muted rounded animate-pulse w-3/4"></div>
+                              <div className="h-2 bg-muted rounded animate-pulse w-1/2"></div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : usersError ? (
+                  <Card className="p-4">
+                    <CardContent className="p-0">
+                      <div className="text-center space-y-2">
+                        <div className="w-8 h-8 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
+                          <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Error al cargar miembros</p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ) : registeredUsers.length > 0 ? (
+                  registeredUsers.map((user, index) => (
+                    <Card 
+                      key={index} 
+                      className="p-2 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
+                      onClick={() => handleUserClick(user)}
+                    >
+                      <CardContent className="p-0">
+                        <div className="flex items-center space-x-2">
+                          <UserAvatar
+                            userAddress={user.userAddress}
+                            customImageUrl={user.avatarLink}
+                            size="sm"
+                            alt={user.username}
+                            showBorder={false}
+                          />
+                          
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-xs font-medium text-card-foreground mb-1 truncate" title={user.username}>
+                              {user.username}
+                            </h3>
+                            
+                            <p className="text-xs text-muted-foreground truncate" title={user.userAddress}>
+                              {shortenAddress(user.userAddress)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card className="p-4">
+                    <CardContent className="p-0">
+                      <div className="text-center space-y-2">
+                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center mx-auto">
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-xs text-muted-foreground">No hay miembros registrados</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </ClientOnly>
             </div>
           </div>
 
@@ -387,7 +433,11 @@ const Home: NextPage = () => {
                   </Card>
                 ) : erc20Tokens.length > 0 ? (
                   erc20Tokens.map((token, index) => (
-                    <Card key={index} className="p-2 hover:shadow-md hover:shadow-accent/5 transition-all duration-200">
+                    <Card 
+                      key={index} 
+                      className="p-2 hover:shadow-md hover:shadow-accent/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
+                      onClick={() => handleTokenClick(token)}
+                    >
                       <CardContent className="p-0">
                         <div className="flex items-center space-x-2">
                           <TokenIcon 
@@ -434,29 +484,72 @@ const Home: NextPage = () => {
             </div>
             
             <div className="space-y-2">
-              {daos.map((dao) => (
-                <Card key={dao.id} className="p-2 hover:shadow-md hover:shadow-primary/5 transition-all duration-200">
-                  <CardContent className="p-0">
-                    <div className="flex items-center space-x-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                          {dao.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xs font-medium text-card-foreground mb-1">
-                          {dao.name}
-                        </h3>
-                        
-                        <p className="text-xs text-muted-foreground truncate">
-                          {dao.address}
-                        </p>
+              <ClientOnly fallback={
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i} className="p-2">
+                      <CardContent className="p-0">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-muted rounded-full animate-pulse"></div>
+                          <div className="flex-1 space-y-1">
+                            <div className="h-3 bg-muted rounded animate-pulse w-3/4"></div>
+                            <div className="h-2 bg-muted rounded animate-pulse w-1/2"></div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              }>
+                {isLoadingDAOs ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i} className="p-2">
+                        <CardContent className="p-0">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 bg-muted rounded-full animate-pulse"></div>
+                            <div className="flex-1 space-y-1">
+                              <div className="h-3 bg-muted rounded animate-pulse w-3/4"></div>
+                              <div className="h-2 bg-muted rounded animate-pulse w-1/2"></div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : daosError ? (
+                  <Card className="p-4">
+                    <CardContent className="p-0">
+                      <div className="text-center space-y-2">
+                        <div className="w-8 h-8 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
+                          <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Error al cargar DAOs</p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ) : allDAOs.length > 0 ? (
+                  allDAOs.map((dao, index) => (
+                    <DAOItem 
+                      key={dao.daoAddress}
+                      daoAddress={dao.daoAddress}
+                      index={index}
+                      onClick={() => handleDAOClick(dao)}
+                    />
+                  ))
+                ) : (
+                  <Card className="p-4">
+                    <CardContent className="p-0">
+                      <div className="text-center space-y-2">
+                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center mx-auto">
+                          <span className="text-muted-foreground text-xs font-bold">D</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">No hay DAOs creadas</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </ClientOnly>
             </div>
           </div>
 
@@ -495,213 +588,6 @@ const Home: NextPage = () => {
           </div>
         </div>
 
-        {/* Sección de usuarios registrados - Ancho completo */}
-        <div className="w-full mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-foreground mb-1">
-                Comunidad de Usuarios
-              </h2>
-            </div>
-          </div>
-
-          <ClientOnly fallback={
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
-                <Card key={i} className="p-2">
-                  <CardContent className="p-0">
-                    <div className="text-center space-y-2">
-                      <div className="w-8 h-8 bg-muted rounded-full animate-pulse mx-auto"></div>
-                      <div className="space-y-1">
-                        <div className="h-3 bg-muted rounded animate-pulse w-3/4 mx-auto"></div>
-                        <div className="h-2 bg-muted rounded animate-pulse w-1/2 mx-auto"></div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          }>
-            {isLoadingUsers ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
-                  <Card key={i} className="p-2">
-                    <CardContent className="p-0">
-                      <div className="text-center space-y-2">
-                        <div className="w-8 h-8 bg-muted rounded-full animate-pulse mx-auto"></div>
-                        <div className="space-y-1">
-                          <div className="h-3 bg-muted rounded animate-pulse w-3/4 mx-auto"></div>
-                          <div className="h-2 bg-muted rounded animate-pulse w-1/2 mx-auto"></div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : registeredUsers.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                {registeredUsers.map((user, index) => (
-                  <Card 
-                    key={index} 
-                    className="p-2 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
-                    onClick={() => handleUserClick(user)}
-                  >
-                    <CardContent className="p-0">
-                      <div className="text-center space-y-2">
-                        {/* Avatar */}
-                        <Avatar className="w-8 h-8 mx-auto">
-                          <AvatarImage 
-                            src={user.avatarLink} 
-                            alt={user.username}
-                            className="object-cover"
-                          />
-                          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-xs font-semibold">
-                            {getUserInitials(user.username)}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        {/* Información del usuario */}
-                        <div className="space-y-1">
-                          <h3 className="text-xs font-medium text-foreground truncate px-1" title={user.username}>
-                            {user.username}
-                          </h3>
-                          
-                          <p className="text-xs text-muted-foreground font-mono truncate px-1" title={user.userAddress}>
-                            {shortenAddress(user.userAddress)}
-                          </p>
-                          
-                        </div>
-
-                        {/* Iconos sociales */}
-                        <div className="flex justify-center space-x-2">
-                          <a
-                            href={user.twitterLink || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                              user.twitterLink && user.twitterLink !== '' 
-                                ? 'bg-blue-100 dark:bg-blue-900/20 hover:bg-blue-200 dark:hover:bg-blue-900/40' 
-                                : 'bg-gray-100 dark:bg-gray-900/20 opacity-50 cursor-not-allowed'
-                            }`}
-                            title={user.twitterLink && user.twitterLink !== '' ? "Twitter" : "Twitter no disponible"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!user.twitterLink || user.twitterLink === '') {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            <Twitter className={`w-4 h-4 ${
-                              user.twitterLink && user.twitterLink !== '' 
-                                ? 'text-blue-600 dark:text-blue-400' 
-                                : 'text-gray-400 dark:text-gray-500'
-                            }`} />
-                          </a>
-                          <a
-                            href={user.githubLink || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                              user.githubLink && user.githubLink !== '' 
-                                ? 'bg-gray-100 dark:bg-gray-900/20 hover:bg-gray-200 dark:hover:bg-gray-900/40' 
-                                : 'bg-gray-100 dark:bg-gray-900/20 opacity-50 cursor-not-allowed'
-                            }`}
-                            title={user.githubLink && user.githubLink !== '' ? "GitHub" : "GitHub no disponible"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!user.githubLink || user.githubLink === '') {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            <Github className={`w-4 h-4 ${
-                              user.githubLink && user.githubLink !== '' 
-                                ? 'text-gray-600 dark:text-gray-400' 
-                                : 'text-gray-400 dark:text-gray-500'
-                            }`} />
-                          </a>
-                          <a
-                            href={user.telegramLink || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
-                              user.telegramLink && user.telegramLink !== '' 
-                                ? 'bg-blue-100 dark:bg-blue-900/20 hover:bg-blue-200 dark:hover:bg-blue-900/40' 
-                                : 'bg-gray-100 dark:bg-gray-900/20 opacity-50 cursor-not-allowed'
-                            }`}
-                            title={user.telegramLink && user.telegramLink !== '' ? "Telegram" : "Telegram no disponible"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!user.telegramLink || user.telegramLink === '') {
-                                e.preventDefault();
-                              }
-                            }}
-                          >
-                            <MessageCircle className={`w-4 h-4 ${
-                              user.telegramLink && user.telegramLink !== '' 
-                                ? 'text-blue-600 dark:text-blue-400' 
-                                : 'text-gray-400 dark:text-gray-500'
-                            }`} />
-                          </a>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : usersError ? (
-              <Card className="p-8">
-                <CardContent className="p-0">
-                  <div className="text-center space-y-4">
-                    <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
-                      <X className="w-8 h-8 text-red-600 dark:text-red-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">
-                        Error al cargar usuarios
-                      </h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {usersError}
-                      </p>
-                      <Button
-                        onClick={() => window.location.reload()}
-                        variant="outline"
-                        className="px-6 py-2"
-                      >
-                        Reintentar
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="p-8">
-                <CardContent className="p-0">
-                  <div className="text-center space-y-4">
-                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
-                      <Users className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground mb-2">
-                        No hay usuarios registrados
-                      </h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Sé el primero en unirte a la comunidad DApp Polka
-                      </p>
-                      <Button
-                        onClick={handleRegisterClick}
-                        className="px-6 py-2"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Registrarse
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </ClientOnly>
-        </div>
       </div>
 
       {/* Modal de información del usuario */}
@@ -724,16 +610,14 @@ const Home: NextPage = () => {
             <CardContent className="space-y-4">
               {/* Avatar y nombre */}
               <div className="text-center space-y-3">
-                <Avatar className="w-20 h-20 mx-auto">
-                  <AvatarImage 
-                    src={selectedUser.avatarLink} 
-                    alt={selectedUser.username}
-                    className="object-cover"
-                  />
-                  <AvatarFallback className="text-lg font-semibold bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                    {getUserInitials(selectedUser.username)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar
+                  userAddress={selectedUser.userAddress}
+                  customImageUrl={selectedUser.avatarLink}
+                  size="xl"
+                  alt={selectedUser.username}
+                  showBorder={true}
+                  className="mx-auto"
+                />
                 <div>
                   <h3 className="text-xl font-bold text-foreground">
                     {selectedUser.username}
@@ -884,6 +768,24 @@ const Home: NextPage = () => {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Modal de información del token */}
+      {showTokenModal && selectedToken && (
+        <TokenInfoModal
+          isOpen={showTokenModal}
+          onClose={closeTokenModal}
+          token={selectedToken}
+        />
+      )}
+
+      {/* Modal de información del DAO */}
+      {showDAOModal && selectedDAO && (
+        <DAOInfoModal
+          isOpen={showDAOModal}
+          onClose={closeDAOModal}
+          dao={selectedDAO}
+        />
       )}
     </div>
   );

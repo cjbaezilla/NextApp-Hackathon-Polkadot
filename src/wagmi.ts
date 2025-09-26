@@ -1,5 +1,5 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { defineChain } from 'viem';
+import { defineChain, http } from 'viem';
 
 // Configuración de la red Polkadot Hub TestNet
 const polkadotHub = defineChain({
@@ -58,10 +58,10 @@ const sepolia = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ['https://gateway.tenderly.co/public/sepolia'],
+      http: [process.env.NEXT_PUBLIC_RPC_URL || 'https://gateway.tenderly.co/public/sepolia'],
     },
     public: {
-      http: ['https://gateway.tenderly.co/public/sepolia'],
+      http: [process.env.NEXT_PUBLIC_RPC_URL || 'https://gateway.tenderly.co/public/sepolia'],
     },
   },
   blockExplorers: {
@@ -78,4 +78,9 @@ export const config = getDefaultConfig({
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'temp_project_id_for_development',
   chains: [hardhat, polkadotHub, sepolia],
   ssr: false, // Deshabilitado para exportación estática
+  transports: {
+    [hardhat.id]: http(),
+    [polkadotHub.id]: http(),
+    [sepolia.id]: http(process.env.NEXT_PUBLIC_RPC_URL || 'https://gateway.tenderly.co/public/sepolia'),
+  },
 });

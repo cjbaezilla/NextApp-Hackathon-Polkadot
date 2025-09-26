@@ -1,5 +1,5 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Globe, ChevronDown, Moon, Sun, Menu, X, Home, ExternalLink, Plus, Vote, UserPlus, User, Coins } from 'lucide-react';
+import { Globe, ChevronDown, Moon, Sun, Menu, X, Home, ExternalLink, Plus, Vote, UserPlus, User, Coins, Users } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { useTheme } from '../hooks/useTheme';
@@ -26,7 +26,8 @@ const Navigation = () => {
   ];
 
   const specialMenuItems = [
-    { icon: Coins, label: 'Crear Token', href: '/crear-token', isSpecial: true }
+    { icon: Coins, label: 'Crear Token', href: '/crear-token', isSpecial: true },
+    { icon: Users, label: 'Crear DAO', href: '/crear-dao', isSpecial: true }
   ];
 
   // Cerrar menú al hacer clic fuera
