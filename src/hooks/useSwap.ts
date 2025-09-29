@@ -269,19 +269,29 @@ export const useSwap = () => {
       }
 
       let path: readonly `0x${string}`[];
+      
+      // Manejar casos especiales de wrap/unwrap
+      if (tokenIn === '0x0000000000000000000000000000000000000000' &&
+          tokenOut.toLowerCase() === UNISWAP_V2_ADDRESSES.WETH.toLowerCase()) {
+        // ETH → WETH: conversión 1:1
+        return amountIn;
+      }
+      
+      if (tokenIn.toLowerCase() === UNISWAP_V2_ADDRESSES.WETH.toLowerCase() &&
+          tokenOut === '0x0000000000000000000000000000000000000000') {
+        // WETH → ETH: conversión 1:1
+        return amountIn;
+      }
+      
+      // Construir el path para el swap
       if (tokenIn === '0x0000000000000000000000000000000000000000') {
+        // ETH → Token: usar WETH como intermediario
         path = [UNISWAP_V2_ADDRESSES.WETH as `0x${string}`, tokenOut] as const;
       } else if (tokenOut === '0x0000000000000000000000000000000000000000') {
-        if (tokenIn.toLowerCase() === UNISWAP_V2_ADDRESSES.WETH.toLowerCase()) {
-          setSwapState(prev => ({ 
-            ...prev, 
-            isCalculating: false,
-            error: 'Para convertir WETH a ETH, usa la función "unwrap" en lugar de swap'
-          }));
-          return '0';
-        }
+        // Token → ETH: usar WETH como intermediario
         path = [tokenIn, UNISWAP_V2_ADDRESSES.WETH as `0x${string}`] as const;
       } else {
+        // Token → Token: intercambio directo
         path = [tokenIn, tokenOut] as const;
       }
 
@@ -289,6 +299,7 @@ export const useSwap = () => {
         return '0';
       }
 
+      // Verificar que existe liquidez para el par de tokens
       const poolExists = await checkPoolExists(path[0], path[1]);
       if (!poolExists) {
         return '0';
@@ -393,6 +404,7 @@ export const useSwap = () => {
       throw new Error('Los tokens de entrada y salida deben ser diferentes');
     }
 
+    // Casos especiales de wrap/unwrap
     if (swapState.tokenIn.toLowerCase() === UNISWAP_V2_ADDRESSES.WETH.toLowerCase() && 
         swapState.tokenOut === '0x0000000000000000000000000000000000000000') {
       return await unwrapWETH(swapState.amountIn);
@@ -415,15 +427,9 @@ export const useSwap = () => {
       
       const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_BUFFER);
 
-      if (swapState.tokenIn !== '0x0000000000000000000000000000000000000000') {
-        const currentAllowance = await getTokenAllowance(swapState.tokenIn);
-        if (currentAllowance < amountInWei) {
-          await approveToken(swapState.tokenIn, swapState.amountIn);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
-      }
-
+      // Si el token de entrada es ETH, usar WETH automáticamente para el swap
       if (swapState.tokenIn === '0x0000000000000000000000000000000000000000') {
+        // ETH → Token: usar swapExactETHForTokens
         const path = [UNISWAP_V2_ADDRESSES.WETH as `0x${string}`, swapState.tokenOut] as const;
         
         await writeContract({
@@ -434,7 +440,15 @@ export const useSwap = () => {
           value: amountInWei
         });
       } else if (swapState.tokenOut === '0x0000000000000000000000000000000000000000') {
+        // Token → ETH: usar swapExactTokensForETH
         const path = [swapState.tokenIn, UNISWAP_V2_ADDRESSES.WETH as `0x${string}`] as const;
+        
+        // Verificar y aprobar el token de entrada si es necesario
+        const currentAllowance = await getTokenAllowance(swapState.tokenIn);
+        if (currentAllowance < amountInWei) {
+          await approveToken(swapState.tokenIn, swapState.amountIn);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
         
         await writeContract({
           address: UNISWAP_V2_ROUTER_ADDRESS,
@@ -443,7 +457,15 @@ export const useSwap = () => {
           args: [amountInWei, minAmountOut, path, address, deadline]
         });
       } else {
+        // Token → Token: usar swapExactTokensForTokens
         const path = [swapState.tokenIn, swapState.tokenOut] as const;
+        
+        // Verificar y aprobar el token de entrada si es necesario
+        const currentAllowance = await getTokenAllowance(swapState.tokenIn);
+        if (currentAllowance < amountInWei) {
+          await approveToken(swapState.tokenIn, swapState.amountIn);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
         
         await writeContract({
           address: UNISWAP_V2_ROUTER_ADDRESS,

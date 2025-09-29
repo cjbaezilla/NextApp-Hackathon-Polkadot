@@ -195,12 +195,26 @@ const SwapPage: NextPage = () => {
         return;
       }
 
+      // Determinar las direcciones reales para verificar el pool
+      let actualTokenIn = tokenInAddress;
+      let actualTokenOut = tokenOutAddress;
+
+      // Si ETH es el token de entrada, usar WETH para la verificación
+      if (tokenInAddress === '0x0000000000000000000000000000000000000000') {
+        actualTokenIn = UNISWAP_V2_ADDRESSES.WETH;
+      }
+
+      // Si ETH es el token de salida, usar WETH para la verificación
+      if (tokenOutAddress === '0x0000000000000000000000000000000000000000') {
+        actualTokenOut = UNISWAP_V2_ADDRESSES.WETH;
+      }
+
       // Validar que ambas direcciones sean válidas
-      if (tokenInAddress.startsWith('0x') && tokenInAddress.length === 42 && 
-          tokenOutAddress.startsWith('0x') && tokenOutAddress.length === 42) {
+      if (actualTokenIn.startsWith('0x') && actualTokenIn.length === 42 && 
+          actualTokenOut.startsWith('0x') && actualTokenOut.length === 42) {
         setIsCheckingPool(true);
         try {
-          const exists = await checkPoolExists(tokenInAddress as `0x${string}`, tokenOutAddress as `0x${string}`);
+          const exists = await checkPoolExists(actualTokenIn as `0x${string}`, actualTokenOut as `0x${string}`);
           setPoolExists(exists);
         } catch (error) {
           console.error('Error checking pool existence:', error);
@@ -543,19 +557,19 @@ const SwapPage: NextPage = () => {
                     </div>
                   )}
                   {tokenInAddress === '0x0000000000000000000000000000000000000000' && (
-                    <div className="p-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="p-2 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs font-medium text-green-800 dark:text-green-200">
+                          <p className="text-xs font-medium text-blue-800 dark:text-blue-200">
                             Ethereum (ETH)
                           </p>
-                          <p className="text-xs text-green-700 dark:text-green-300">
-                            Se usará ETH nativo de tu wallet
+                          <p className="text-xs text-blue-700 dark:text-blue-300">
+                            Se convertirá automáticamente a WETH para el swap
                           </p>
                         </div>
-                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
                           <CheckCircle className="w-3 h-3 mr-1" />
-                          ETH
+                          ETH → WETH
                         </Badge>
                       </div>
                     </div>
@@ -686,6 +700,13 @@ const SwapPage: NextPage = () => {
                           'Unwrap WETH → ETH' : 'Wrap ETH → WETH'}
                       </Badge>
                     </div>
+                  ) : tokenInAddress === '0x0000000000000000000000000000000000000000' && 
+                    tokenOutAddress !== '0x0000000000000000000000000000000000000000' ? (
+                    <div className="flex items-center justify-center">
+                      <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                        ETH → WETH → {tokenOutInfo?.symbol || 'Token'}
+                      </Badge>
+                    </div>
                   ) : null}
                   
                   <div className="flex items-center justify-between text-sm">
@@ -696,6 +717,9 @@ const SwapPage: NextPage = () => {
                        (tokenInAddress === '0x0000000000000000000000000000000000000000' &&
                         tokenOutAddress.toLowerCase() === UNISWAP_V2_ADDRESSES.WETH.toLowerCase()) ? (
                         '1:1 (Wrap/Unwrap)'
+                      ) : tokenInAddress === '0x0000000000000000000000000000000000000000' && 
+                        tokenOutAddress !== '0x0000000000000000000000000000000000000000' ? (
+                        `1 ETH = ${formatAmount((parseFloat(optimisticAmountOut || swapState.amountOut) / parseFloat(amountIn)).toString())} ${tokenOutInfo?.symbol}`
                       ) : (
                         `1 ${tokenInAddress === '0x0000000000000000000000000000000000000000' ? 'ETH' : tokenInInfo?.symbol} = ${formatAmount((parseFloat(optimisticAmountOut || swapState.amountOut) / parseFloat(amountIn)).toString())} ${tokenOutAddress === '0x0000000000000000000000000000000000000000' ? 'ETH' : tokenOutInfo?.symbol}`
                       )}
@@ -750,8 +774,8 @@ const SwapPage: NextPage = () => {
                           href={{
                             pathname: '/crear-pool',
                             query: {
-                              tokenA: tokenInAddress,
-                              tokenB: tokenOutAddress
+                              tokenA: tokenInAddress === '0x0000000000000000000000000000000000000000' ? UNISWAP_V2_ADDRESSES.WETH : tokenInAddress,
+                              tokenB: tokenOutAddress === '0x0000000000000000000000000000000000000000' ? UNISWAP_V2_ADDRESSES.WETH : tokenOutAddress
                             }
                           }}
                         >
@@ -782,8 +806,8 @@ const SwapPage: NextPage = () => {
                             href={{
                               pathname: '/crear-pool',
                               query: {
-                                tokenA: tokenInAddress || '',
-                                tokenB: tokenOutAddress || ''
+                                tokenA: (tokenInAddress === '0x0000000000000000000000000000000000000000' ? UNISWAP_V2_ADDRESSES.WETH : tokenInAddress) || '',
+                                tokenB: (tokenOutAddress === '0x0000000000000000000000000000000000000000' ? UNISWAP_V2_ADDRESSES.WETH : tokenOutAddress) || ''
                               }
                             }}
                           >
@@ -896,8 +920,8 @@ const SwapPage: NextPage = () => {
                     href={{
                       pathname: '/crear-pool',
                       query: {
-                        tokenA: tokenInAddress,
-                        tokenB: tokenOutAddress
+                        tokenA: tokenInAddress === '0x0000000000000000000000000000000000000000' ? UNISWAP_V2_ADDRESSES.WETH : tokenInAddress,
+                        tokenB: tokenOutAddress === '0x0000000000000000000000000000000000000000' ? UNISWAP_V2_ADDRESSES.WETH : tokenOutAddress
                       }
                     }}
                     className="w-full"
@@ -960,6 +984,9 @@ const SwapPage: NextPage = () => {
                     ) : (tokenInAddress === '0x0000000000000000000000000000000000000000' &&
                          tokenOutAddress.toLowerCase() === UNISWAP_V2_ADDRESSES.WETH.toLowerCase()) ? (
                       'Wrap ETH'
+                    ) : tokenInAddress === '0x0000000000000000000000000000000000000000' && 
+                         tokenOutAddress !== '0x0000000000000000000000000000000000000000' ? (
+                      'Swap ETH → Token'
                     ) : !amountIn || parseFloat(amountIn) <= 0 ? (
                       'Ingresa cantidad'
                     ) : (

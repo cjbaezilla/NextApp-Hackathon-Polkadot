@@ -32,11 +32,13 @@ export interface LiquidityState {
   isCalculating: boolean;
   isAdding: boolean;
   isRemoving: boolean;
+  isApproving: boolean;
   isConfirming: boolean;
   isSuccess: boolean;
   successOperation: 'add' | 'remove' | null;
   error: string | null;
   txHash: string | null;
+  approvalTxHash: string | null;
 }
 
 export interface PoolInfo {
@@ -83,22 +85,32 @@ export const useLiquidity = () => {
     isCalculating: false,
     isAdding: false,
     isRemoving: false,
+    isApproving: false,
     isConfirming: false,
     isSuccess: false,
     successOperation: null,
     error: null,
     txHash: null,
+    approvalTxHash: null,
   });
 
   const [poolInfo, setPoolInfo] = useState<PoolInfo | null>(null);
   const [tokenBalances, setTokenBalances] = useState<TokenInfo[]>([]);
   const [lpTokenBalance, setLpTokenBalance] = useState<bigint>(0n);
 
-  // Hook para esperar confirmación de transacción
+  // Hook para esperar confirmación de transacción principal
   const { data: receipt, error: receiptError, isLoading: isConfirmingTx } = useWaitForTransactionReceipt({
     hash: liquidityState.txHash as `0x${string}` | undefined,
     query: {
       enabled: !!liquidityState.txHash,
+    },
+  });
+
+  // Hook para esperar confirmación de transacción de aprobación
+  const { data: approvalReceipt, error: approvalReceiptError } = useWaitForTransactionReceipt({
+    hash: liquidityState.approvalTxHash as `0x${string}` | undefined,
+    query: {
+      enabled: !!liquidityState.approvalTxHash,
     },
   });
 
@@ -162,7 +174,7 @@ export const useLiquidity = () => {
     } catch (error) {
       throw new Error('Error al obtener información del token');
     }
-  }, [publicClient, address, ethBalance?.value, UNISWAP_V2_ADDRESSES.WETH]);
+  }, [publicClient, address, ethBalance?.value]);
 
   // Función para obtener información del pool
   const getPoolInfo = useCallback(async (poolAddress: `0x${string}`): Promise<PoolInfo> => {
@@ -367,6 +379,40 @@ export const useLiquidity = () => {
     }
   }, [address, publicClient, writeContract]);
 
+  // Función para aprobar tokens LP
+  const approveLPTokens = useCallback(async (
+    poolAddress: `0x${string}`,
+    amount: bigint
+  ): Promise<void> => {
+    if (!address || !publicClient) {
+      throw new Error('Wallet no conectada');
+    }
+
+    // Configurar el estado de aprobación
+    setLiquidityState(prev => ({ 
+      ...prev, 
+      isApproving: true,
+      approvalTxHash: null,
+      error: null
+    }));
+
+    try {
+      writeContract({
+        address: poolAddress,
+        abi: ERC20_ABI.abi,
+        functionName: 'approve',
+        args: [UNISWAP_V2_ROUTER_ADDRESS, amount],
+      });
+    } catch (error: any) {
+      setLiquidityState(prev => ({ 
+        ...prev, 
+        isApproving: false,
+        error: `Error al aprobar LP tokens: ${error.message}` 
+      }));
+      throw error;
+    }
+  }, [address, publicClient, writeContract]);
+
   // Función para agregar liquidez
   const addLiquidity = useCallback(async (
     tokenA: `0x${string}`,
@@ -378,7 +424,14 @@ export const useLiquidity = () => {
       throw new Error('Wallet no conectada');
     }
 
-    setLiquidityState(prev => ({ ...prev, isAdding: true, error: null }));
+    setLiquidityState(prev => ({ 
+      ...prev, 
+      isAdding: true, 
+      error: null,
+      isSuccess: false,
+      successOperation: null,
+      txHash: null
+    }));
 
     try {
       // Obtener pool address
@@ -519,7 +572,7 @@ export const useLiquidity = () => {
         error: error.message || 'Error al agregar liquidez' 
       }));
     }
-  }, [address, publicClient, getPoolAddress, getPoolInfo, writeContract, wrapETH, ethBalance?.value, UNISWAP_V2_ADDRESSES.WETH]);
+  }, [address, publicClient, getPoolAddress, getPoolInfo, writeContract, wrapETH, ethBalance?.value]);
 
   // Función para remover liquidez
   const removeLiquidity = useCallback(async (
@@ -531,7 +584,18 @@ export const useLiquidity = () => {
       throw new Error('Wallet no conectada');
     }
 
-    setLiquidityState(prev => ({ ...prev, isRemoving: true, error: null }));
+    setLiquidityState(prev => ({ 
+      ...prev, 
+      isRemoving: true, 
+      error: null,
+      isSuccess: false,
+      successOperation: null,
+      txHash: null,
+      tokenA,
+      tokenB,
+      lpTokenAmount,
+      poolAddress: null
+    }));
 
     try {
       // Obtener pool address
@@ -540,18 +604,15 @@ export const useLiquidity = () => {
         throw new Error('Pool no encontrado');
       }
 
+      // Actualizar el estado con la dirección del pool
+      setLiquidityState(prev => ({ 
+        ...prev, 
+        poolAddress
+      }));
+
       // Obtener información del pool
       const pool = await getPoolInfo(poolAddress);
       const lpAmountWei = parseUnits(lpTokenAmount, 18);
-
-      // Calcular cantidades mínimas
-      const token0Amount = (lpAmountWei * pool.reserve0) / pool.totalSupply;
-      const token1Amount = (lpAmountWei * pool.reserve1) / pool.totalSupply;
-      const amountAMin = (token0Amount * BigInt(100 - SLIPPAGE_TOLERANCE)) / 100n;
-      const amountBMin = (token1Amount * BigInt(100 - SLIPPAGE_TOLERANCE)) / 100n;
-
-      // Obtener deadline
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_BUFFER);
 
       // Verificar y aprobar LP tokens si es necesario
       const allowance = await publicClient.readContract({
@@ -562,20 +623,41 @@ export const useLiquidity = () => {
       }) as bigint;
 
       if (allowance < lpAmountWei) {
-        try {
-          await writeContract({
-            address: poolAddress,
-            abi: ERC20_ABI.abi,
-            functionName: 'approve',
-            args: [UNISWAP_V2_ROUTER_ADDRESS, lpAmountWei],
-          });
-        } catch (approveError: any) {
-          throw new Error(`Error al aprobar LP tokens: ${approveError.message}`);
-        }
-      }
+        // Pausar el proceso de remoción mientras se aprueba
+        setLiquidityState(prev => ({ 
+          ...prev, 
+          isRemoving: false
+        }));
 
-      // Remover liquidez
-      try {
+        try {
+          // Usar la función de aprobación que maneja el callback correctamente
+          await approveLPTokens(poolAddress, lpAmountWei);
+          
+          // La función approveLPTokens maneja el estado de aprobación
+          // y el callback se encarga de continuar con la remoción
+          
+        } catch (approveError: any) {
+          setLiquidityState(prev => ({ 
+            ...prev, 
+            isApproving: false,
+            error: `Error al aprobar LP tokens: ${approveError.message}` 
+          }));
+          return;
+        }
+      } else {
+        // No necesita aprobación, continuar directamente
+        const lpAmountWei = parseUnits(lpTokenAmount, 18);
+
+        // Calcular cantidades mínimas
+        const token0Amount = (lpAmountWei * pool.reserve0) / pool.totalSupply;
+        const token1Amount = (lpAmountWei * pool.reserve1) / pool.totalSupply;
+        const amountAMin = (token0Amount * BigInt(100 - SLIPPAGE_TOLERANCE)) / 100n;
+        const amountBMin = (token1Amount * BigInt(100 - SLIPPAGE_TOLERANCE)) / 100n;
+
+        // Obtener deadline
+        const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_BUFFER);
+
+        // Remover liquidez
         await writeContract({
           address: UNISWAP_V2_ROUTER_ADDRESS,
           abi: UNISWAP_V2_ROUTER_ABI.abi,
@@ -598,19 +680,18 @@ export const useLiquidity = () => {
           isConfirming: true,
           successOperation: 'remove'
         }));
-      } catch (removeLiquidityError: any) {
-        throw new Error(`Error al remover liquidez: ${removeLiquidityError.message}`);
       }
 
     } catch (error: any) {
       setLiquidityState(prev => ({ 
         ...prev, 
         isRemoving: false, 
+        isApproving: false,
         isConfirming: false,
         error: error.message || 'Error al remover liquidez' 
       }));
     }
-  }, [address, publicClient, getPoolAddress, getPoolInfo, writeContract]);
+  }, [address, publicClient, getPoolAddress, getPoolInfo, writeContract, approveLPTokens]);
 
   // Función para actualizar estado
   const updateLiquidityState = useCallback((updates: Partial<LiquidityState>) => {
@@ -622,7 +703,9 @@ export const useLiquidity = () => {
     setLiquidityState(prev => ({ 
       ...prev, 
       isSuccess: false, 
-      successOperation: null 
+      successOperation: null,
+      txHash: null,
+      error: null
     }));
   }, []);
 
@@ -638,11 +721,13 @@ export const useLiquidity = () => {
       isCalculating: false,
       isAdding: false,
       isRemoving: false,
+      isApproving: false,
       isConfirming: false,
       isSuccess: false,
       successOperation: null,
       error: null,
       txHash: null,
+      approvalTxHash: null,
     });
     setPoolInfo(null);
     setLpTokenBalance(0n);
@@ -658,7 +743,98 @@ export const useLiquidity = () => {
     }
   }, [writeData, liquidityState.isConfirming, liquidityState.txHash]);
 
-  // Efecto para manejar confirmación de transacciones
+  // Efecto para capturar el hash de la transacción de aprobación cuando writeData esté disponible
+  useEffect(() => {
+    if (writeData && liquidityState.isApproving && !liquidityState.approvalTxHash) {
+      setLiquidityState(prev => ({ 
+        ...prev, 
+        approvalTxHash: writeData as `0x${string}`
+      }));
+    }
+  }, [writeData, liquidityState.isApproving, liquidityState.approvalTxHash]);
+
+  // Efecto para manejar confirmación de transacciones de aprobación
+  useEffect(() => {
+    if (approvalReceipt && liquidityState.isApproving) {
+      // La aprobación se confirmó, ahora continuar con la remoción
+      setLiquidityState(prev => ({ 
+        ...prev, 
+        isApproving: false,
+        isRemoving: true,
+        approvalTxHash: null
+      }));
+
+      // Continuar con la remoción de liquidez automáticamente
+      const continueRemoval = async () => {
+        try {
+          if (!liquidityState.poolAddress || !liquidityState.tokenA || !liquidityState.tokenB || !liquidityState.lpTokenAmount) {
+            throw new Error('Datos insuficientes para continuar');
+          }
+
+          const poolAddress = liquidityState.poolAddress;
+          const tokenA = liquidityState.tokenA;
+          const tokenB = liquidityState.tokenB;
+          const lpTokenAmount = liquidityState.lpTokenAmount;
+
+          // Obtener información del pool
+          const pool = await getPoolInfo(poolAddress);
+          const lpAmountWei = parseUnits(lpTokenAmount, 18);
+
+          // Calcular cantidades mínimas
+          const token0Amount = (lpAmountWei * pool.reserve0) / pool.totalSupply;
+          const token1Amount = (lpAmountWei * pool.reserve1) / pool.totalSupply;
+          const amountAMin = (token0Amount * BigInt(100 - SLIPPAGE_TOLERANCE)) / 100n;
+          const amountBMin = (token1Amount * BigInt(100 - SLIPPAGE_TOLERANCE)) / 100n;
+
+          // Obtener deadline
+          const deadline = BigInt(Math.floor(Date.now() / 1000) + DEADLINE_BUFFER);
+
+          // Remover liquidez
+          await writeContract({
+            address: UNISWAP_V2_ROUTER_ADDRESS,
+            abi: UNISWAP_V2_ROUTER_ABI.abi,
+            functionName: 'removeLiquidity',
+            args: [
+              tokenA,
+              tokenB,
+              lpAmountWei,
+              amountAMin,
+              amountBMin,
+              address,
+              deadline,
+            ],
+          });
+
+          // Cambiar a estado de confirmación
+          setLiquidityState(prev => ({ 
+            ...prev, 
+            isRemoving: false,
+            isConfirming: true,
+            successOperation: 'remove'
+          }));
+
+        } catch (error: any) {
+          setLiquidityState(prev => ({ 
+            ...prev, 
+            isRemoving: false,
+            error: `Error al remover liquidez: ${error.message}` 
+          }));
+        }
+      };
+
+      continueRemoval();
+    }
+
+    if (approvalReceiptError && liquidityState.isApproving) {
+      setLiquidityState(prev => ({ 
+        ...prev, 
+        isApproving: false,
+        error: approvalReceiptError.message || 'Error en la transacción de aprobación' 
+      }));
+    }
+  }, [approvalReceipt, approvalReceiptError, liquidityState.isApproving, liquidityState.poolAddress, liquidityState.tokenA, liquidityState.tokenB, liquidityState.lpTokenAmount, getPoolInfo, writeContract, address]);
+
+  // Efecto para manejar confirmación de transacciones principales
   useEffect(() => {
     if (receipt && liquidityState.isConfirming) {
       setLiquidityState(prev => ({ 

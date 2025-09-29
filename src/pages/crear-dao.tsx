@@ -22,6 +22,7 @@ import { useRouter } from 'next/router';
 import ClientOnly from '@/components/ClientOnly';
 import Link from 'next/link';
 import { useDAOCreation } from '@/hooks/useDAOCreation';
+import { useNFTCollectionValidation } from '@/hooks/useNFTCollectionValidation';
 
 const CrearDAOPage: NextPage = () => {
   const router = useRouter();
@@ -46,6 +47,16 @@ const CrearDAOPage: NextPage = () => {
     isConnected,
     address
   } = useDAOCreation();
+
+  // Hook para validar que el usuario tenga NFTs en la colección especificada
+  const {
+    isValidating: isValidatingNFTs,
+    hasNFTs,
+    nftBalance: collectionNFTBalance,
+    error: nftValidationError,
+    isContractAddressValid,
+    revalidate: revalidateNFTs
+  } = useNFTCollectionValidation(nftContractAddress);
 
   // Efecto para manejar éxito de creación
   useEffect(() => {
@@ -129,7 +140,9 @@ const CrearDAOPage: NextPage = () => {
     minTokensToApprove &&
     Number(minProposalCreationTokens.replace(/[^\d]/g, '')) > 0 &&
     Number(minVotesToApprove.replace(/[^\d]/g, '')) > 0 &&
-    Number(minTokensToApprove.replace(/[^\d]/g, '')) > 0;
+    Number(minTokensToApprove.replace(/[^\d]/g, '')) > 0 &&
+    isContractAddressValid &&
+    hasNFTs === true;
 
   return (
     <div className="min-h-screen bg-background">
@@ -287,17 +300,87 @@ const CrearDAOPage: NextPage = () => {
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Dirección del Contrato NFT
                 </label>
-                <input
-                  type="text"
-                  value={nftContractAddress}
-                  onChange={(e) => setNftContractAddress(e.target.value)}
-                  placeholder="0x..."
-                  className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  disabled={daoCreationState.isCreating || daoCreationState.isConfirming || !userRequirements?.canCreateDAO}
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={nftContractAddress}
+                    onChange={(e) => setNftContractAddress(e.target.value)}
+                    placeholder="0x..."
+                    className={`w-full px-3 py-2 border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
+                      nftContractAddress.trim() !== '' && !isValidatingNFTs
+                        ? hasNFTs === true
+                          ? 'border-green-500 focus:ring-green-500'
+                          : hasNFTs === false
+                          ? 'border-red-500 focus:ring-red-500'
+                          : nftValidationError
+                          ? 'border-red-500 focus:ring-red-500'
+                          : 'border-border'
+                        : 'border-border'
+                    }`}
+                    disabled={daoCreationState.isCreating || daoCreationState.isConfirming || !userRequirements?.canCreateDAO}
+                  />
+                  {isValidatingNFTs && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {!isValidatingNFTs && nftContractAddress.trim() !== '' && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      {hasNFTs === true ? (
+                        <CheckCircle className="w-4 h-4 text-green-500" />
+                      ) : hasNFTs === false ? (
+                        <XCircle className="w-4 h-4 text-red-500" />
+                      ) : nftValidationError ? (
+                        <XCircle className="w-4 h-4 text-red-500" />
+                      ) : null}
+                    </div>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Dirección del contrato NFT que se usará para determinar la membresía del DAO
+                  Dirección del contrato NFT que se usará para determinar la membresía del DAO. 
+                  <span className="text-orange-600 dark:text-orange-400 font-medium"> Debes poseer al menos 1 NFT en esta colección.</span>
                 </p>
+                
+                {/* Feedback de validación de NFTs */}
+                {nftContractAddress.trim() !== '' && !isValidatingNFTs && (
+                  <div className="mt-2">
+                    {hasNFTs === true ? (
+                      <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-xs">
+                          Posees {collectionNFTBalance} NFT{collectionNFTBalance !== 1 ? 's' : ''} en esta colección
+                        </span>
+                      </div>
+                    ) : hasNFTs === false ? (
+                      <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+                        <XCircle className="w-4 h-4" />
+                        <span className="text-xs">
+                          No posees NFTs en esta colección (necesitas al menos 1)
+                        </span>
+                      </div>
+                    ) : nftValidationError ? (
+                      <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+                        <XCircle className="w-4 h-4" />
+                        <span className="text-xs">{nftValidationError}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={revalidateNFTs}
+                          className="text-xs h-6 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+                        >
+                          Reintentar
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+                
+                {isValidatingNFTs && (
+                  <div className="mt-2 flex items-center space-x-2 text-blue-600 dark:text-blue-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-xs">Verificando balance de NFTs...</span>
+                  </div>
+                )}
               </div>
 
               {/* Nombre del DAO */}
@@ -399,7 +482,9 @@ const CrearDAOPage: NextPage = () => {
                   daoCreationState.isConfirming ||
                   !userRequirements?.canCreateDAO || 
                   !isConnected ||
-                  !isFormValid
+                  !isFormValid ||
+                  isValidatingNFTs ||
+                  (nftContractAddress.trim() !== '' && hasNFTs !== true)
                 }
                 className="w-full"
               >
@@ -475,7 +560,9 @@ const CrearDAOPage: NextPage = () => {
                           daoCreationState.isConfirming ||
                           !userRequirements?.canCreateDAO || 
                           !isConnected ||
-                          !isFormValid
+                          !isFormValid ||
+                          isValidatingNFTs ||
+                          (nftContractAddress.trim() !== '' && hasNFTs !== true)
                         }
                       >
                         Reintentar

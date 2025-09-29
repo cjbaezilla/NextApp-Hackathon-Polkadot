@@ -341,7 +341,7 @@ const RemoverLiquidezPage: NextPage = () => {
               <Button
                 variant="outline"
                 className="text-xs h-12 w-full"
-                disabled={liquidityState.isRemoving || liquidityState.isConfirming}
+                disabled={liquidityState.isRemoving || liquidityState.isApproving || liquidityState.isConfirming}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Agregar Liquidez
@@ -379,7 +379,7 @@ const RemoverLiquidezPage: NextPage = () => {
                       onChange={(e) => setTokenA(e.target.value)}
                       placeholder="0x... (dirección del token)"
                       className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-xs"
-                      disabled={liquidityState.isRemoving || liquidityState.isConfirming}
+                      disabled={liquidityState.isRemoving || liquidityState.isApproving || liquidityState.isConfirming}
                     />
                   </div>
                   <div>
@@ -392,13 +392,13 @@ const RemoverLiquidezPage: NextPage = () => {
                       onChange={(e) => setTokenB(e.target.value)}
                       placeholder="0x... (dirección del token)"
                       className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-xs"
-                      disabled={liquidityState.isRemoving || liquidityState.isConfirming}
+                      disabled={liquidityState.isRemoving || liquidityState.isApproving || liquidityState.isConfirming}
                     />
                   </div>
                 </div>
                 <Button
                   onClick={handleSearchPool}
-                  disabled={!tokenA || !tokenB || isLoadingPoolInfo || liquidityState.isRemoving || liquidityState.isConfirming}
+                  disabled={!tokenA || !tokenB || isLoadingPoolInfo || liquidityState.isRemoving || liquidityState.isApproving || liquidityState.isConfirming}
                   className="w-full text-xs"
                 >
                   {isLoadingPoolInfo ? (
@@ -501,7 +501,7 @@ const RemoverLiquidezPage: NextPage = () => {
                           ? 'border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/20' 
                           : 'border-border'
                       }`}
-                      disabled={liquidityState.isRemoving || liquidityState.isConfirming}
+                      disabled={liquidityState.isRemoving || liquidityState.isApproving || liquidityState.isConfirming}
                     />
                     {isCalculating && (
                       <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
@@ -516,7 +516,7 @@ const RemoverLiquidezPage: NextPage = () => {
                         const maxBalance = fromTokenUnits(lpTokenBalance, 18);
                         setLpTokenAmount(maxBalance);
                       }}
-                      disabled={liquidityState.isRemoving || liquidityState.isConfirming || !lpTokenBalance || lpTokenBalance === 0n}
+                      disabled={liquidityState.isRemoving || liquidityState.isApproving || liquidityState.isConfirming || !lpTokenBalance || lpTokenBalance === 0n}
                       className="absolute right-1 top-1 h-8 px-2 text-xs"
                     >
                       MAX
@@ -553,6 +553,37 @@ const RemoverLiquidezPage: NextPage = () => {
                   </div>
                 )}
 
+                {liquidityState.isApproving && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                      <span className="text-sm text-blue-800 dark:text-blue-200">
+                        Aprobando tokens LP para remover liquidez. Esto puede tomar unos momentos...
+                      </span>
+                    </div>
+                    {liquidityState.approvalTxHash && (
+                      <div className="mt-2 flex items-center space-x-2">
+                        <span className="text-xs text-blue-700 dark:text-blue-300">
+                          Hash de aprobación: {liquidityState.approvalTxHash.slice(0, 10)}...{liquidityState.approvalTxHash.slice(-8)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => liquidityState.approvalTxHash && handleCopyHash(liquidityState.approvalTxHash)}
+                          className="h-5 w-5 p-0 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/20"
+                          title={copiedHash === liquidityState.approvalTxHash ? "¡Copiado!" : "Copiar hash"}
+                        >
+                          {copiedHash === liquidityState.approvalTxHash ? (
+                            <CheckCircle className="w-3 h-3" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {calculationError && (
                   <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
                     <div className="flex items-center space-x-2">
@@ -569,12 +600,17 @@ const RemoverLiquidezPage: NextPage = () => {
                   disabled={
                     !lpTokenAmount || 
                     parseFloat(lpTokenAmount) <= 0 ||
-                    liquidityState.isRemoving || liquidityState.isConfirming ||
+                    liquidityState.isRemoving || liquidityState.isApproving || liquidityState.isConfirming ||
                     !isConnected
                   }
                   className="w-full"
                 >
-                  {liquidityState.isRemoving ? (
+                  {liquidityState.isApproving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Aprobando tokens LP...
+                    </>
+                  ) : liquidityState.isRemoving ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Removiendo liquidez...

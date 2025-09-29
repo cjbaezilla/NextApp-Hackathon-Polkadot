@@ -72,6 +72,11 @@ const AgregarLiquidezPage: NextPage = () => {
   const [calculationError, setCalculationError] = useState<string | null>(null);
   const [isResettingAfterSuccess, setIsResettingAfterSuccess] = useState(false);
 
+  // Estado para rastrear qué input está activo (para evitar bucles infinitos)
+  const [activeInput, setActiveInput] = useState<'A' | 'B' | null>(null);
+  const [isUpdatingFromCalculation, setIsUpdatingFromCalculation] = useState(false);
+  const [updatingInput, setUpdatingInput] = useState<'A' | 'B' | null>(null);
+
   // Debounced values para evitar cálculos excesivos
   const debouncedAmountA = useDebounce(amountA, 300);
   const debouncedAmountB = useDebounce(amountB, 300);
@@ -101,12 +106,25 @@ const AgregarLiquidezPage: NextPage = () => {
       setAmountA('');
       setAmountB('');
       setCalculationError(null);
-      // Resetear la bandera después de un delay más largo para evitar cálculos automáticos
+      setActiveInput(null);
+      setIsUpdatingFromCalculation(false);
+      setUpdatingInput(null);
+      
+      // Resetear la bandera después de un delay corto para permitir nueva operación
+      // pero mantener el mensaje de éxito visible
       setTimeout(() => {
         setIsResettingAfterSuccess(false);
-      }, 500);
+      }, 100);
     }
   }, [liquidityState.isSuccess]);
+
+  // Efecto para resetear el estado de éxito cuando se inicia una nueva operación
+  useEffect(() => {
+    if (liquidityState.isAdding && liquidityState.isSuccess) {
+      // Si estamos agregando liquidez pero el estado de éxito sigue activo, resetearlo
+      resetSuccessState();
+    }
+  }, [liquidityState.isAdding, liquidityState.isSuccess, resetSuccessState]);
 
   // Efecto para sincronizar selectedPool con poolInfo del hook
   useEffect(() => {
@@ -213,47 +231,12 @@ const AgregarLiquidezPage: NextPage = () => {
     }
   };
 
-  // Función para calcular cantidades óptimas al agregar liquidez (A -> B)
-  const handleCalculateOptimalAmounts = useCallback(async () => {
-    if (!selectedPool || !debouncedAmountA || parseFloat(debouncedAmountA) <= 0 || isResettingAfterSuccess) {
-      setCalculationError(null);
-      return;
+  // Función para calcular cantidad B basada en cantidad A para agregar liquidez (proporcional)
+  const calculateAmountBFromA = useCallback(async (amountAValue: string) => {
+    if (!selectedPool || !amountAValue || parseFloat(amountAValue) <= 0 || isResettingAfterSuccess) {
+      return null;
     }
 
-    setIsCalculating(true);
-    setCalculationError(null);
-    
-    try {
-      const amounts = await calculateOptimalAmounts(
-        selectedPool.token0,
-        selectedPool.token1,
-        debouncedAmountA
-      );
-      
-      if (amounts) {
-        // Determinar qué token es A y cuál es B
-        const isTokenAFirst = tokenA.toLowerCase() === selectedPool.token0.toLowerCase();
-        setAmountB(isTokenAFirst ? amounts.amountB : amounts.amountA);
-      } else {
-        setCalculationError('No se pudieron calcular las cantidades óptimas');
-      }
-    } catch (error) {
-      setCalculationError('Error al calcular cantidades óptimas');
-    } finally {
-      setIsCalculating(false);
-    }
-  }, [selectedPool, debouncedAmountA, tokenA, calculateOptimalAmounts, isResettingAfterSuccess]);
-
-  // Función para calcular cantidad A basada en cantidad B
-  const handleCalculateAmountAFromB = useCallback(async () => {
-    if (!selectedPool || !debouncedAmountB || parseFloat(debouncedAmountB) <= 0 || isResettingAfterSuccess) {
-      setCalculationError(null);
-      return;
-    }
-
-    setIsCalculating(true);
-    setCalculationError(null);
-    
     try {
       // Determinar qué token es A y cuál es B
       const isTokenAFirst = tokenA.toLowerCase() === selectedPool.token0.toLowerCase();
@@ -262,28 +245,122 @@ const AgregarLiquidezPage: NextPage = () => {
       const decimalsA = isTokenAFirst ? selectedPool.token0Info.decimals : selectedPool.token1Info.decimals;
       const decimalsB = isTokenAFirst ? selectedPool.token1Info.decimals : selectedPool.token0Info.decimals;
 
-      // Convertir cantidad B a wei
-      const amountBWei = parseUnits(debouncedAmountB, decimalsB);
+      // Si el pool no tiene liquidez, no podemos calcular proporciones automáticamente
+      if (reserveA === 0n || reserveB === 0n) {
+        console.log('Pool sin liquidez - no se puede calcular proporción automáticamente');
+        setCalculationError(null); // No es un error, solo no podemos calcular
+        return null;
+      }
+
+      // Convertir cantidad A a wei
+      const amountAWei = parseUnits(amountAValue, decimalsA);
       
-      // Calcular cantidad proporcional de A
+      // No validar contra las reservas del pool - el usuario está agregando liquidez, no limitado por lo existente
+      
+      // Para agregar liquidez, necesitamos mantener la proporción de las reservas
+      // amountB = (amountA * reserveB) / reserveA
+      // Usar BigInt para evitar errores de precisión
+      const amountBWei = (amountAWei * reserveB) / reserveA;
+      
+      // Validar que el resultado no sea cero
+      if (amountBWei === 0n) {
+        console.error('Cantidad calculada es cero');
+        setCalculationError('La cantidad calculada es muy pequeña. Intenta con una cantidad mayor.');
+        return null;
+      }
+      
+      const amountBFormatted = formatUnits(amountBWei, decimalsB);
+      
+      return amountBFormatted;
+    } catch (error) {
+      console.error('Error calculando cantidad B:', error);
+      setCalculationError('Error al calcular la cantidad óptima. Verifica que los datos del pool sean correctos.');
+      return null;
+    }
+  }, [selectedPool, tokenA, isResettingAfterSuccess]);
+
+  // Función para calcular cantidad A basada en cantidad B para agregar liquidez (proporcional)
+  const calculateAmountAFromB = useCallback(async (amountBValue: string) => {
+    if (!selectedPool || !amountBValue || parseFloat(amountBValue) <= 0 || isResettingAfterSuccess) {
+      return null;
+    }
+
+    try {
+      // Determinar qué token es A y cuál es B
+      const isTokenAFirst = tokenA.toLowerCase() === selectedPool.token0.toLowerCase();
+      const reserveA = isTokenAFirst ? selectedPool.reserve0 : selectedPool.reserve1;
+      const reserveB = isTokenAFirst ? selectedPool.reserve1 : selectedPool.reserve0;
+      const decimalsA = isTokenAFirst ? selectedPool.token0Info.decimals : selectedPool.token1Info.decimals;
+      const decimalsB = isTokenAFirst ? selectedPool.token1Info.decimals : selectedPool.token0Info.decimals;
+
+      // Si el pool no tiene liquidez, no podemos calcular proporciones automáticamente
+      if (reserveA === 0n || reserveB === 0n) {
+        console.log('Pool sin liquidez - no se puede calcular proporción automáticamente');
+        setCalculationError(null); // No es un error, solo no podemos calcular
+        return null;
+      }
+
+      // Convertir cantidad B a wei
+      const amountBWei = parseUnits(amountBValue, decimalsB);
+      
+      // No validar contra las reservas del pool - el usuario está agregando liquidez, no limitado por lo existente
+      
+      // Para agregar liquidez, necesitamos mantener la proporción de las reservas
+      // amountA = (amountB * reserveA) / reserveB
+      // Usar BigInt para evitar errores de precisión
       const amountAWei = (amountBWei * reserveA) / reserveB;
+      
+      // Validar que el resultado no sea cero
+      if (amountAWei === 0n) {
+        console.error('Cantidad calculada es cero');
+        setCalculationError('La cantidad calculada es muy pequeña. Intenta con una cantidad mayor.');
+        return null;
+      }
+      
       const amountAFormatted = formatUnits(amountAWei, decimalsA);
       
-      setAmountA(amountAFormatted);
+      return amountAFormatted;
     } catch (error) {
-      setCalculationError('Error al calcular cantidad A');
-    } finally {
-      setIsCalculating(false);
+      console.error('Error calculando cantidad A:', error);
+      setCalculationError('Error al calcular la cantidad óptima. Verifica que los datos del pool sean correctos.');
+      return null;
     }
-  }, [selectedPool, debouncedAmountB, tokenA, isResettingAfterSuccess]);
+  }, [selectedPool, tokenA, isResettingAfterSuccess]);
+
 
 
 
   // Función para agregar liquidez
   const handleAddLiquidity = async () => {
+    // Resetear estado de éxito si existe para permitir nueva operación
+    if (liquidityState.isSuccess) {
+      resetSuccessState();
+      // Pequeño delay para asegurar que el estado se actualice
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     if (!selectedPool || !amountA || !amountB) {
       updateLiquidityState({ error: 'Completa todas las cantidades' });
       return;
+    }
+
+    // Verificar si el pool tiene liquidez existente
+    const isFirstLiquidityProvider = selectedPool.reserve0 === 0n || selectedPool.reserve1 === 0n;
+    
+    if (isFirstLiquidityProvider) {
+      // Para el primer proveedor de liquidez, no necesitamos validar proporciones
+      // pero sí validar que las cantidades sean válidas
+      if (parseFloat(amountA) <= 0 || parseFloat(amountB) <= 0) {
+        updateLiquidityState({ error: 'Las cantidades deben ser mayores a cero' });
+        return;
+      }
+    } else {
+      // Para pools con liquidez existente, validar que las cantidades sean proporcionales
+      // pero no limitar por las reservas existentes
+      if (parseFloat(amountA) <= 0 || parseFloat(amountB) <= 0) {
+        updateLiquidityState({ error: 'Las cantidades deben ser mayores a cero' });
+        return;
+      }
     }
 
     // Validaciones específicas para WETH+ETH
@@ -357,29 +434,121 @@ const AgregarLiquidezPage: NextPage = () => {
 
   // Handlers para NumericFormat optimizados con useCallback
   const handleAmountAChange = useCallback((values: any) => {
-    setAmountA(values.value || '');
+    const newValue = values.value || '';
+    setAmountA(newValue);
+    
+    // Solo cambiar activeInput si no estamos actualizando desde un cálculo
+    if (!isUpdatingFromCalculation) {
+      setActiveInput('A');
+    }
     setCalculationError(null);
-  }, []);
+    
+    // Si el valor está vacío, limpiar también el input B
+    if (!newValue) {
+      setAmountB('');
+      setActiveInput(null);
+    }
+  }, [isUpdatingFromCalculation]);
 
   const handleAmountBChange = useCallback((values: any) => {
-    setAmountB(values.value || '');
+    const newValue = values.value || '';
+    setAmountB(newValue);
+    
+    // Solo cambiar activeInput si no estamos actualizando desde un cálculo
+    if (!isUpdatingFromCalculation) {
+      setActiveInput('B');
+    }
     setCalculationError(null);
-  }, []);
-
-
-  // Efecto para calcular cantidades óptimas cuando cambie debouncedAmountA
-  useEffect(() => {
-    if (selectedPool && debouncedAmountA && parseFloat(debouncedAmountA) > 0 && !isResettingAfterSuccess) {
-      handleCalculateOptimalAmounts();
+    
+    // Si el valor está vacío, limpiar también el input A
+    if (!newValue) {
+      setAmountA('');
+      setActiveInput(null);
     }
-  }, [debouncedAmountA, selectedPool, handleCalculateOptimalAmounts, isResettingAfterSuccess]);
+  }, [isUpdatingFromCalculation]);
 
-  // Efecto para calcular cantidad A cuando cambie debouncedAmountB
+
+  // Efecto para calcular cantidad B cuando el usuario escriba en el input A
   useEffect(() => {
-    if (selectedPool && debouncedAmountB && parseFloat(debouncedAmountB) > 0 && !isResettingAfterSuccess) {
-      handleCalculateAmountAFromB();
+    if (selectedPool && debouncedAmountA && parseFloat(debouncedAmountA) > 0 && !isResettingAfterSuccess && activeInput === 'A' && !isUpdatingFromCalculation && updatingInput !== 'B') {
+      const calculateB = async () => {
+        // Si el pool no tiene liquidez, no calcular automáticamente
+        if (selectedPool.reserve0 === 0n || selectedPool.reserve1 === 0n) {
+          setCalculationError(null);
+          return;
+        }
+
+        setIsCalculating(true);
+        setCalculationError(null);
+        setUpdatingInput('B');
+        
+        try {
+          const calculatedAmountB = await calculateAmountBFromA(debouncedAmountA);
+          if (calculatedAmountB) {
+            setIsUpdatingFromCalculation(true);
+            setAmountB(calculatedAmountB);
+            setCalculationError(null);
+            // Reset flags after a short delay
+            setTimeout(() => {
+              setIsUpdatingFromCalculation(false);
+              setUpdatingInput(null);
+            }, 100);
+          } else {
+            setCalculationError('No se pudo calcular la cantidad óptima. Verifica que la cantidad no exceda las reservas del pool.');
+            setUpdatingInput(null);
+          }
+        } catch (error) {
+          setCalculationError('Error al calcular cantidad óptima. Verifica que la cantidad sea válida.');
+          setUpdatingInput(null);
+        } finally {
+          setIsCalculating(false);
+        }
+      };
+      
+      calculateB();
     }
-  }, [debouncedAmountB, selectedPool, handleCalculateAmountAFromB, isResettingAfterSuccess]);
+  }, [debouncedAmountA, selectedPool, activeInput, isResettingAfterSuccess, isUpdatingFromCalculation, updatingInput, calculateAmountBFromA]);
+
+  // Efecto para calcular cantidad A cuando el usuario escriba en el input B
+  useEffect(() => {
+    if (selectedPool && debouncedAmountB && parseFloat(debouncedAmountB) > 0 && !isResettingAfterSuccess && activeInput === 'B' && !isUpdatingFromCalculation && updatingInput !== 'A') {
+      const calculateA = async () => {
+        // Si el pool no tiene liquidez, no calcular automáticamente
+        if (selectedPool.reserve0 === 0n || selectedPool.reserve1 === 0n) {
+          setCalculationError(null);
+          return;
+        }
+
+        setIsCalculating(true);
+        setCalculationError(null);
+        setUpdatingInput('A');
+        
+        try {
+          const calculatedAmountA = await calculateAmountAFromB(debouncedAmountB);
+          if (calculatedAmountA) {
+            setIsUpdatingFromCalculation(true);
+            setAmountA(calculatedAmountA);
+            setCalculationError(null);
+            // Reset flags after a short delay
+            setTimeout(() => {
+              setIsUpdatingFromCalculation(false);
+              setUpdatingInput(null);
+            }, 100);
+          } else {
+            setCalculationError('No se pudo calcular la cantidad óptima. Verifica que la cantidad no exceda las reservas del pool.');
+            setUpdatingInput(null);
+          }
+        } catch (error) {
+          setCalculationError('Error al calcular cantidad óptima. Verifica que la cantidad sea válida.');
+          setUpdatingInput(null);
+        } finally {
+          setIsCalculating(false);
+        }
+      };
+      
+      calculateA();
+    }
+  }, [debouncedAmountB, selectedPool, activeInput, isResettingAfterSuccess, isUpdatingFromCalculation, updatingInput, calculateAmountAFromB]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -658,6 +827,24 @@ const AgregarLiquidezPage: NextPage = () => {
                   </div>
                 </div>
                 
+                {/* Información sobre pool sin liquidez */}
+                {selectedPool && (selectedPool.reserve0 === 0n || selectedPool.reserve1 === 0n) && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-start space-x-2">
+                      <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-xs text-blue-800 dark:text-blue-200">
+                        <p className="font-medium mb-1">💡 Primer proveedor de liquidez</p>
+                        <p>
+                          Este pool no tiene liquidez existente. Serás el primer proveedor de liquidez y establecerás el precio inicial del par de tokens.
+                        </p>
+                        <p className="mt-1 text-blue-700 dark:text-blue-300">
+                          Ingresa las cantidades que deseas para ambos tokens. No hay restricciones de proporción ya que establecerás el precio inicial.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Información sobre WETH + ETH */}
                 {(selectedPool.token0Info.isWETH || selectedPool.token1Info.isWETH) && (
                   <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
