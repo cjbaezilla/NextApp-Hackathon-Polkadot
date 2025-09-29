@@ -1,5 +1,6 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,9 +15,13 @@ import ClientOnly from '@/components/ClientOnly';
 import { useAllUsers, UserInfo } from '@/hooks/useAllUsers';
 import { useERC20Tokens, TokenInfo } from '@/hooks/useERC20Tokens';
 import { useAllDAOs, DAOInfo } from '@/hooks/useAllDAOs';
+import { useUniswapV2Pools, PoolInfo } from '@/hooks/useUniswapV2Pools';
 import { DAOItem } from '@/components/DAOItem';
 import TokenInfoModal from '@/components/TokenInfoModal';
 import DAOInfoModal from '@/components/DAOInfoModal';
+import PoolInfoModal from '@/components/PoolInfoModal';
+import { formatAmount } from '@/lib/uniswap-utils';
+import { formatUnits } from 'viem';
 
 // Cargar ABI del contrato desde variable de entorno
 const UsersContract = require(process.env.NEXT_PUBLIC_USERS_CONTRACT_ABI_PATH!);
@@ -27,33 +32,6 @@ const ERC20FactoryAddress = process.env.NEXT_PUBLIC_ERC20MEMBERSFACTORY_CONTRACT
 
 
 
-// Datos de ejemplo para Pools
-const pools = [
-  {
-    id: 1,
-    name: 'DOT-ETH Pool',
-    address: '0xgggg...hhhh',
-    liquidity: '125K DOT',
-    apy: '8.5%',
-    volume: '45K DOT'
-  },
-  {
-    id: 2,
-    name: 'POLK-USDC Pool',
-    address: '0xiiii...jjjj',
-    liquidity: '78K DOT',
-    apy: '12.3%',
-    volume: '32K DOT'
-  },
-  {
-    id: 3,
-    name: 'SUB-DOT Pool',
-    address: '0xkkkk...llll',
-    liquidity: '95K DOT',
-    apy: '6.7%',
-    volume: '28K DOT'
-  }
-];
 
 const Home: NextPage = () => {
   const router = useRouter();
@@ -64,6 +42,8 @@ const Home: NextPage = () => {
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [selectedDAO, setSelectedDAO] = useState<DAOInfo | null>(null);
   const [showDAOModal, setShowDAOModal] = useState(false);
+  const [selectedPool, setSelectedPool] = useState<PoolInfo | null>(null);
+  const [showPoolModal, setShowPoolModal] = useState(false);
 
   // Dirección del contrato desde variables de entorno
   const contractAddress = process.env.NEXT_PUBLIC_USERS_CONTRACT_ADDRESS as `0x${string}`;
@@ -83,6 +63,14 @@ const Home: NextPage = () => {
     isLoading: isLoadingDAOs, 
     error: daosError
   } = useAllDAOs(3);
+
+  // Usar el hook personalizado para obtener pools de liquidez
+  const {
+    pools: liquidityPools,
+    isLoading: isLoadingPools,
+    error: poolsError,
+    totalPools: totalPoolsCreated
+  } = useUniswapV2Pools();
 
   // Leer datos del contrato
   const { data: totalMembers } = useContractRead({
@@ -132,6 +120,16 @@ const Home: NextPage = () => {
     setSelectedDAO(null);
   };
 
+  const handlePoolClick = (pool: PoolInfo) => {
+    setSelectedPool(pool);
+    setShowPoolModal(true);
+  };
+
+  const closePoolModal = () => {
+    setShowPoolModal(false);
+    setSelectedPool(null);
+  };
+
   // Función para obtener iniciales del usuario
   const getUserInitials = (username: string) => {
     return username
@@ -155,6 +153,30 @@ const Home: NextPage = () => {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Usar función de formateo centralizada
+  const formatNumber = formatAmount;
+
+  // Calcular TVL total solo en ETH
+  const calculateTotalTVL = () => {
+    const wethAddress = process.env.NEXT_PUBLIC_WETH_ADDRESS?.toLowerCase();
+    if (!wethAddress) return '0';
+
+    return liquidityPools.reduce((sum, pool) => {
+      const token0Address = pool.token0.address.toLowerCase();
+      const token1Address = pool.token1.address.toLowerCase();
+      
+      // Solo incluir pools que contengan WETH/ETH
+      if (token0Address === wethAddress || token1Address === wethAddress) {
+        // Si token0 es WETH, usar reserve0; si token1 es WETH, usar reserve1
+        const ethReserve = token0Address === wethAddress ? pool.reserves.reserve0 : pool.reserves.reserve1;
+        const ethAmount = formatUnits(ethReserve, 18); // WETH tiene 18 decimales
+        return sum + parseFloat(ethAmount);
+      }
+      
+      return sum;
+    }, 0);
   };
 
 
@@ -195,11 +217,11 @@ const Home: NextPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Usuarios</p>
-                    <p className="text-lg font-bold text-foreground">
+                    <div className="text-lg font-bold text-foreground">
                       <ClientOnly fallback="0">
                         {totalMembers ? Number(totalMembers).toString() : '0'}
                       </ClientOnly>
-                    </p>
+                    </div>
                   </div>
                   <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
                     <Users className="text-white text-xs w-4 h-4" />
@@ -214,11 +236,11 @@ const Home: NextPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Tokens Creados</p>
-                    <p className="text-lg font-bold text-foreground">
+                    <div className="text-lg font-bold text-foreground">
                       <ClientOnly fallback="0">
                         {totalTokensCreated.toString()}
                       </ClientOnly>
-                    </p>
+                    </div>
                   </div>
                   <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
                     <span className="text-white text-xs font-bold">T</span>
@@ -233,11 +255,11 @@ const Home: NextPage = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">DAOs Creadas</p>
-                    <p className="text-lg font-bold text-foreground">
+                    <div className="text-lg font-bold text-foreground">
                       <ClientOnly fallback="0">
                         {totalDAOsCreated.toString()}
                       </ClientOnly>
-                    </p>
+                    </div>
                   </div>
                   <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
                     <span className="text-white text-xs font-bold">D</span>
@@ -247,19 +269,25 @@ const Home: NextPage = () => {
             </Card>
 
             {/* Pools de liquidez */}
-            <Card className="p-3 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/20 border-orange-200 dark:border-orange-800">
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">LP Pools</p>
-                    <p className="text-lg font-bold text-foreground">Pronto</p>
+            <Link href="/pools">
+              <Card className="p-3 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/20 border-orange-200 dark:border-orange-800 hover:shadow-md hover:shadow-orange-500/10 transition-all duration-200 cursor-pointer">
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">LP Pools</p>
+                      <div className="text-lg font-bold text-foreground">
+                        <ClientOnly fallback="0">
+                          {totalPoolsCreated}
+                        </ClientOnly>
+                      </div>
+                    </div>
+                    <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">L</span>
+                    </div>
                   </div>
-                  <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">L</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
 
           {/* TVL destacado */}
@@ -267,11 +295,15 @@ const Home: NextPage = () => {
             <CardContent className="p-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total Value Locked (TVL)</p>
-                  <p className="text-2xl font-bold text-foreground">Pronto</p>
+                  <p className="text-sm text-muted-foreground mb-1">TVL Total en ETH</p>
+                  <div className="text-2xl font-bold text-foreground">
+                    <ClientOnly fallback="0">
+                      {formatNumber(calculateTotalTVL().toString())} ETH
+                    </ClientOnly>
+                  </div>
                 </div>
                 <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                  <span className="text-white text-lg font-bold">$</span>
+                  <span className="text-white text-lg font-bold">Ξ</span>
                 </div>
               </div>
             </CardContent>
@@ -337,7 +369,7 @@ const Home: NextPage = () => {
                   registeredUsers.map((user, index) => (
                     <Card 
                       key={index} 
-                      className="p-2 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
+                      className="p-2 mb-2 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
                       onClick={() => handleUserClick(user)}
                     >
                       <CardContent className="p-0">
@@ -382,7 +414,7 @@ const Home: NextPage = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-foreground">
-                Nuevos Tokens ERC20
+                Nuevos Tokens
               </h2>
             </div>
             
@@ -435,7 +467,7 @@ const Home: NextPage = () => {
                   erc20Tokens.map((token, index) => (
                     <Card 
                       key={index} 
-                      className="p-2 hover:shadow-md hover:shadow-accent/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
+                      className="p-2 mb-2 hover:shadow-md hover:shadow-accent/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
                       onClick={() => handleTokenClick(token)}
                     >
                       <CardContent className="p-0">
@@ -556,34 +588,104 @@ const Home: NextPage = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-sm font-semibold text-foreground">
-                Nuevos Liquidity Pools
+                Nuevos Pools
               </h2>
             </div>
             
             <div className="space-y-2">
-              {pools.map((pool) => (
-                <Card key={pool.id} className="p-2 hover:shadow-md hover:shadow-accent/5 transition-all duration-200">
-                  <CardContent className="p-0">
-                    <div className="flex items-center space-x-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="bg-accent text-accent-foreground text-xs font-medium">
-                          {pool.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xs font-medium text-card-foreground mb-1">
-                          {pool.name}
-                        </h3>
-                        
-                        <p className="text-xs text-muted-foreground truncate">
-                          {pool.address}
-                        </p>
+              <ClientOnly fallback={
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i} className="p-2">
+                      <CardContent className="p-0">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-muted rounded-full animate-pulse"></div>
+                          <div className="flex-1 space-y-1">
+                            <div className="h-3 bg-muted rounded animate-pulse w-3/4"></div>
+                            <div className="h-2 bg-muted rounded animate-pulse w-1/2"></div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              }>
+                {isLoadingPools ? (
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i} className="p-2">
+                        <CardContent className="p-0">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-6 h-6 bg-muted rounded-full animate-pulse"></div>
+                            <div className="flex-1 space-y-1">
+                              <div className="h-3 bg-muted rounded animate-pulse w-3/4"></div>
+                              <div className="h-2 bg-muted rounded animate-pulse w-1/2"></div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : poolsError ? (
+                  <Card className="p-4">
+                    <CardContent className="p-0">
+                      <div className="text-center space-y-2">
+                        <div className="w-8 h-8 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto">
+                          <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+                        </div>
+                        <p className="text-xs text-muted-foreground">Error al cargar pools</p>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ) : liquidityPools.length > 0 ? (
+                  liquidityPools.slice(0, 3).map((pool, index) => (
+                    <Card 
+                      key={pool.address} 
+                      className="p-2 mb-2 hover:shadow-md hover:shadow-accent/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
+                      onClick={() => handlePoolClick(pool)}
+                    >
+                      <CardContent className="p-0">
+                        <div className="flex items-center space-x-2">
+                          {/* Tokens */}
+                          <div className="flex items-center -space-x-1">
+                            <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center border-2 border-background">
+                              <span className="text-white text-xs font-bold">
+                                {pool.token0.symbol.charAt(0)}
+                              </span>
+                            </div>
+                            <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-background">
+                              <span className="text-white text-xs font-bold">
+                                {pool.token1.symbol.charAt(0)}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-xs font-medium text-card-foreground mb-1">
+                              {pool.token0.symbol}/{pool.token1.symbol}
+                            </h3>
+                            
+                            <p className="text-xs text-muted-foreground truncate">
+                              {shortenAddress(pool.address)}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <Card className="p-4">
+                    <CardContent className="p-0">
+                      <div className="text-center space-y-2">
+                        <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center mx-auto">
+                          <span className="text-muted-foreground text-xs font-bold">L</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">No hay pools disponibles</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </ClientOnly>
             </div>
           </div>
         </div>
@@ -785,6 +887,15 @@ const Home: NextPage = () => {
           isOpen={showDAOModal}
           onClose={closeDAOModal}
           dao={selectedDAO}
+        />
+      )}
+
+      {/* Modal de información del pool */}
+      {showPoolModal && selectedPool && (
+        <PoolInfoModal
+          isOpen={showPoolModal}
+          onClose={closePoolModal}
+          pool={selectedPool}
         />
       )}
     </div>

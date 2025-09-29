@@ -233,124 +233,49 @@ const MintPage: NextPage = () => {
 
         {/* Estadísticas principales */}
         <div className="mb-4">
-          <div className="grid grid-cols-2 gap-2">
-            <ClientOnly fallback={
-              <>
-                <Card className="p-3 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 border-green-200 dark:border-green-800">
+          <div className="flex gap-2">
+            {mainStats.map((stat, index) => {
+              const IconComponent = stat.icon;
+              return (
+                <Card key={index} className={`flex-1 p-3 bg-gradient-to-br ${stat.color}`}>
                   <CardContent className="p-0">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1 truncate">Precio por NFT</p>
-                        <p className="text-sm font-bold text-foreground truncate">1 PAS</p>
+                        <p className="text-xs text-muted-foreground mb-1 truncate">{stat.label}</p>
+                        <p className="text-sm font-bold text-foreground truncate">{stat.value}</p>
                       </div>
                       <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                        <Coins className="w-3 h-3 text-primary" />
+                        <IconComponent className="w-3 h-3 text-primary" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="p-3 bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-950/20 dark:to-cyan-900/20 border-cyan-200 dark:border-cyan-800">
-                  <CardContent className="p-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1 truncate">Tú Balance PAS</p>
-                        <p className="text-sm font-bold text-foreground truncate">0.0000 PAS</p>
-                      </div>
-                      <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                        <Coins className="w-3 h-3 text-primary" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            }>
-              {mainStats.map((stat, index) => {
-                const IconComponent = stat.icon;
-                return (
-                  <Card key={index} className={`p-3 bg-gradient-to-br ${stat.color}`}>
-                    <CardContent className="p-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground mb-1 truncate">{stat.label}</p>
-                          <p className="text-sm font-bold text-foreground truncate">{stat.value}</p>
-                        </div>
-                        <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                          <IconComponent className="w-3 h-3 text-primary" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </ClientOnly>
+              );
+            })}
           </div>
         </div>
 
         {/* Otras estadísticas */}
         <div className="mb-6">
-          <div className="grid grid-cols-3 gap-2">
-            <ClientOnly fallback={
-              <>
-                <Card className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
+          <div className="flex gap-2">
+            {otherStats.map((stat, index) => {
+              const IconComponent = stat.icon;
+              return (
+                <Card key={index} className={`flex-1 p-3 bg-gradient-to-br ${stat.color}`}>
                   <CardContent className="p-0">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1 truncate">Holders</p>
-                        <p className="text-sm font-bold text-foreground truncate">0</p>
+                        <p className="text-xs text-muted-foreground mb-1 truncate">{stat.label}</p>
+                        <p className="text-sm font-bold text-foreground truncate">{stat.value}</p>
                       </div>
                       <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                        <Users className="w-3 h-3 text-primary" />
+                        <IconComponent className="w-3 h-3 text-primary" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20 border-purple-200 dark:border-purple-800">
-                  <CardContent className="p-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1 truncate">Total</p>
-                        <p className="text-sm font-bold text-foreground truncate">0</p>
-                      </div>
-                      <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                        <ImageIcon className="w-3 h-3 text-primary" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="p-3 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/20 border-orange-200 dark:border-orange-800">
-                  <CardContent className="p-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1 truncate">Tuyos</p>
-                        <p className="text-sm font-bold text-foreground truncate">0</p>
-                      </div>
-                      <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                        <User className="w-3 h-3 text-primary" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            }>
-              {otherStats.map((stat, index) => {
-                const IconComponent = stat.icon;
-                return (
-                  <Card key={index} className={`p-3 bg-gradient-to-br ${stat.color}`}>
-                    <CardContent className="p-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground mb-1 truncate">{stat.label}</p>
-                          <p className="text-sm font-bold text-foreground truncate">{stat.value}</p>
-                        </div>
-                        <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                          <IconComponent className="w-3 h-3 text-primary" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
               );
             })}
-            </ClientOnly>
           </div>
         </div>
 

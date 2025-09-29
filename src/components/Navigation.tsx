@@ -1,5 +1,5 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Globe, ChevronDown, Moon, Sun, Menu, X, Home, ExternalLink, Plus, Vote, UserPlus, User, Coins, Users } from 'lucide-react';
+import { Globe, ChevronDown, Moon, Sun, Menu, X, Home, ExternalLink, Plus, Vote, UserPlus, User, Coins, Users, Activity, Droplets, ArrowLeftRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigation } from '../hooks/useNavigation';
 import { useTheme } from '../hooks/useTheme';
@@ -8,8 +8,13 @@ const Navigation = () => {
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('ES');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { isMobile, isExtraSmall } = useNavigation();
   const { theme, toggleTheme } = useTheme();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const languages = [
     { code: 'ES', name: 'Español' },
@@ -22,12 +27,16 @@ const Navigation = () => {
     { icon: Plus, label: 'Mint NFT', href: '/mint' },
     { icon: UserPlus, label: 'Registro', href: '/registro' },
     { icon: User, label: 'Perfil', href: '/perfil' },
-    { icon: Vote, label: 'DAO', href: '/dao' }
+    { icon: Vote, label: 'DAO', href: '/dao' },
+    { icon: Activity, label: 'Pools', href: '/pools' },
+    { icon: ArrowLeftRight, label: 'Swap', href: '/swap' },
+    { icon: Droplets, label: 'Liquidez', href: '/agregar-liquidez' }
   ];
 
   const specialMenuItems = [
     { icon: Coins, label: 'Crear Token', href: '/crear-token', isSpecial: true },
-    { icon: Users, label: 'Crear DAO', href: '/crear-dao', isSpecial: true }
+    { icon: Users, label: 'Crear DAO', href: '/crear-dao', isSpecial: true },
+    { icon: Droplets, label: 'Crear Pool', href: '/crear-pool', isSpecial: true }
   ];
 
   // Cerrar menú al hacer clic fuera
@@ -54,6 +63,37 @@ const Navigation = () => {
       document.body.style.overflow = 'unset';
     };
   }, [isMenuOpen]);
+
+  // Durante la hidratación, renderizar una versión simplificada
+  if (!mounted) {
+    return (
+      <div className="w-full bg-background border-b border-border shadow-sm">
+        <div className="h-6 bg-muted border-b border-border flex items-center justify-between px-2 text-xs text-muted-foreground">
+          <span className="font-medium">v0.1.0</span>
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-muted rounded"></div>
+            <div className="w-px h-3 bg-border"></div>
+            <div className="flex items-center space-x-1">
+              <div className="w-3 h-3 bg-muted rounded"></div>
+              <span className="text-xs font-medium">ES</span>
+              <div className="w-3 h-3 bg-muted rounded"></div>
+            </div>
+          </div>
+        </div>
+        <div className="h-12 flex items-center justify-between px-3">
+          <div className="flex items-center space-x-2">
+            <div className="p-1.5 rounded-md bg-muted">
+              <div className="w-5 h-5 bg-muted rounded"></div>
+            </div>
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center shadow-sm">
+              <span className="text-white text-sm font-bold">P</span>
+            </div>
+          </div>
+          <div className="w-24 h-8 bg-muted rounded animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full bg-background border-b border-border shadow-sm">

@@ -269,56 +269,25 @@ const RegistroPage: NextPage = () => {
 
         {/* Estadísticas principales */}
         <div className="mb-4">
-          <div className="grid grid-cols-2 gap-2">
-            <ClientOnly fallback={
-              <>
-                <Card className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
+          <div className="flex gap-2">
+            {mainStats.map((stat, index) => {
+              const IconComponent = stat.icon;
+              return (
+                <Card key={index} className={`flex-1 p-3 bg-gradient-to-br ${stat.color}`}>
                   <CardContent className="p-0">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1 truncate">Usuarios Registrados</p>
-                        <p className="text-sm font-bold text-foreground truncate">0</p>
+                        <p className="text-xs text-muted-foreground mb-1 truncate">{stat.label}</p>
+                        <p className="text-sm font-bold text-foreground truncate">{stat.value}</p>
                       </div>
                       <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                        <Users className="w-3 h-3 text-primary" />
+                        <IconComponent className="w-3 h-3 text-primary" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="p-3 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/20 border-orange-200 dark:border-orange-800">
-                  <CardContent className="p-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground mb-1 truncate">Tu Estado</p>
-                        <p className="text-sm font-bold text-foreground truncate">No Registrado</p>
-                      </div>
-                      <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                        <User className="w-3 h-3 text-primary" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            }>
-              {mainStats.map((stat, index) => {
-                const IconComponent = stat.icon;
-                return (
-                  <Card key={index} className={`p-3 bg-gradient-to-br ${stat.color}`}>
-                    <CardContent className="p-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground mb-1 truncate">{stat.label}</p>
-                          <p className="text-sm font-bold text-foreground truncate">{stat.value}</p>
-                        </div>
-                        <div className="w-6 h-6 bg-primary/10 rounded-lg flex items-center justify-center ml-2 flex-shrink-0">
-                          <IconComponent className="w-3 h-3 text-primary" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </ClientOnly>
+              );
+            })}
           </div>
         </div>
 

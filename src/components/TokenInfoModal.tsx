@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TokenIcon } from '@/components/ui/token-icon';
@@ -13,7 +13,8 @@ import {
   Mail,
   Twitter,
   Github,
-  MessageCircle
+  MessageCircle,
+  CheckCircle
 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { TokenInfo } from '@/hooks/useERC20Tokens';
@@ -28,6 +29,7 @@ interface TokenInfoModalProps {
 const TokenInfoModal: React.FC<TokenInfoModalProps> = ({ isOpen, onClose, token }) => {
   const router = useRouter();
   const { userInfo, isLoading: isLoadingUser, error: userError } = useUserByAddress(token.creator);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   // Función para acortar dirección
   const shortenAddress = (address: string) => {
@@ -51,12 +53,14 @@ const TokenInfoModal: React.FC<TokenInfoModalProps> = ({ isOpen, onClose, token 
     return Number(value).toLocaleString('es-ES');
   };
 
-  // Función para copiar al portapapeles
-  const copyToClipboard = async (text: string) => {
+  // Función para copiar dirección
+  const handleCopyAddress = async (address: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-    } catch (err) {
-      console.error('Error al copiar:', err);
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    } catch (error) {
+      // Error copying address
     }
   };
 
@@ -121,11 +125,15 @@ const TokenInfoModal: React.FC<TokenInfoModalProps> = ({ isOpen, onClose, token 
                   <div className="flex items-center space-x-2">
                     <span className="font-mono text-sm">{shortenAddress(token.tokenAddress)}</span>
                     <button
-                      onClick={() => copyToClipboard(token.tokenAddress)}
+                      onClick={() => handleCopyAddress(token.tokenAddress)}
                       className="p-1 rounded hover:bg-muted transition-colors"
-                      title="Copiar dirección completa"
+                      title={copiedAddress === token.tokenAddress ? "¡Copiado!" : "Copiar dirección completa"}
                     >
-                      <Copy className="w-4 h-4" />
+                      {copiedAddress === token.tokenAddress ? (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
                     </button>
                     <Button
                       variant="ghost"

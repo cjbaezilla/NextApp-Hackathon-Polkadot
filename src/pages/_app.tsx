@@ -1,3 +1,51 @@
+// Suprimir errores del Analytics SDK de RainbowKit de forma más agresiva
+if (typeof window !== 'undefined') {
+  // Interceptar console.error antes de cualquier importación
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    const message = args[0]?.toString() || '';
+    if (message.includes('Analytics SDK') || 
+        message.includes('Failed to fetch') || 
+        message.includes('AnalyticsSDKApiError') ||
+        message.includes('TypeError: Failed to fetch')) {
+      return;
+    }
+    originalConsoleError.apply(console, args);
+  };
+
+  // Interceptar console.warn también
+  const originalConsoleWarn = console.warn;
+  console.warn = (...args) => {
+    const message = args[0]?.toString() || '';
+    if (message.includes('Analytics SDK') || 
+        message.includes('Failed to fetch') || 
+        message.includes('AnalyticsSDKApiError')) {
+      return;
+    }
+    originalConsoleWarn.apply(console, args);
+  };
+
+  // Manejar promesas rechazadas
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason?.toString() || '';
+    if (reason.includes('Analytics SDK') || 
+        reason.includes('AnalyticsSDKApiError') ||
+        reason.includes('Failed to fetch')) {
+      event.preventDefault();
+    }
+  });
+
+  // Manejar errores no capturados
+  window.addEventListener('error', (event) => {
+    const message = event.message || '';
+    if (message.includes('Analytics SDK') || 
+        message.includes('Failed to fetch') || 
+        message.includes('AnalyticsSDKApiError')) {
+      event.preventDefault();
+    }
+  });
+}
+
 import '../styles/globals.css';
 import '@rainbow-me/rainbowkit/styles.css';
 import type { AppProps } from 'next/app';
@@ -8,12 +56,12 @@ import { WagmiProvider } from 'wagmi';
 import { RainbowKitProvider, darkTheme, lightTheme } from '@rainbow-me/rainbowkit';
 
 import { config } from '../wagmi';
+import { hardhat } from '../wagmi';
 import Navigation from '../components/Navigation';
 import ClientOnly from '../components/ClientOnly';
 
 const client = new QueryClient();
 
-// Componente interno que maneja el tema para evitar problemas de hidratación
 function AppWithTheme({ Component, pageProps, router }: AppProps) {
   const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -21,21 +69,18 @@ function AppWithTheme({ Component, pageProps, router }: AppProps) {
   useEffect(() => {
     setMounted(true);
     
-    // Obtener tema guardado del localStorage o detectar preferencia del sistema
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     const initialTheme = savedTheme || systemTheme;
     
     setTheme(initialTheme);
     
-    // Aplicar tema al documento
     if (initialTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
 
-    // Escuchar cambios en el sistema
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleSystemChange = (e: MediaQueryListEvent) => {
       if (!localStorage.getItem('theme')) {
@@ -49,7 +94,6 @@ function AppWithTheme({ Component, pageProps, router }: AppProps) {
       }
     };
 
-    // Escuchar cambios de tema desde el hook useTheme
     const handleThemeChange = (e: CustomEvent) => {
       setTheme(e.detail.theme);
     };
@@ -63,10 +107,8 @@ function AppWithTheme({ Component, pageProps, router }: AppProps) {
     };
   }, []);
 
-  // Determinar el tema para RainbowKit
   const rainbowKitTheme = theme === 'dark' ? darkTheme() : lightTheme();
 
-  // Evitar hidratación incorrecta en SSR
   if (!mounted) {
     return (
       <div className="bg-background text-foreground">
@@ -105,7 +147,11 @@ function AppWithTheme({ Component, pageProps, router }: AppProps) {
   }
 
   return (
-    <RainbowKitProvider theme={rainbowKitTheme}>
+    <RainbowKitProvider 
+      theme={rainbowKitTheme}
+      initialChain={hardhat}
+      showRecentTransactions={false}
+    >
       <div className="bg-background text-foreground">
         <ClientOnly fallback={
           <div className="w-full bg-background border-b border-border shadow-sm">
@@ -138,7 +184,7 @@ function AppWithTheme({ Component, pageProps, router }: AppProps) {
         </ClientOnly>
         <Component {...pageProps} />
       </div>
-    </RainbowKitProvider>
+</RainbowKitProvider>
   );
 }
 

@@ -28,7 +28,7 @@ const polkadotHub = defineChain({
 });
 
 // Configuración de la red local Hardhat
-const hardhat = defineChain({
+export const hardhat = defineChain({
   id: 31337,
   name: 'Hardhat Local',
   nativeCurrency: {

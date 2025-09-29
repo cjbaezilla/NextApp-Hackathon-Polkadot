@@ -147,17 +147,21 @@ export const CommunityTokensWithBalance = ({ userAddress, onTokenClick }: Commun
 
   if (allTokens.length === 0) {
     return (
-      <div className="text-center py-8">
-        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-          <Coins className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <h3 className="text-lg font-medium text-foreground mb-2">
-          No hay tokens de la comunidad disponibles
-        </h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          No se han creado tokens por otros usuarios aún
-        </p>
-      </div>
+      <Card className="p-8">
+        <CardContent className="p-0">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <Coins className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              No hay tokens de la comunidad disponibles
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              No se han creado tokens por otros usuarios aún
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 

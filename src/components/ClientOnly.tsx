@@ -20,7 +20,7 @@ export const ClientOnly: React.FC<ClientOnlyProps> = ({ children, fallback = nul
   // Durante la hidratación, siempre renderizar el fallback
   // para evitar diferencias entre servidor y cliente
   if (!hasMounted) {
-    return fallback ? <>{fallback}</> : <div suppressHydrationWarning>{null}</div>;
+    return fallback ? <>{fallback}</> : null;
   }
 
   return <>{children}</>;

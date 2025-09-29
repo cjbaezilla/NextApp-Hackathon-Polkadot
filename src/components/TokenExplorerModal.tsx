@@ -40,6 +40,7 @@ const TokenExplorerModal: React.FC<TokenExplorerModalProps> = ({ isOpen, onClose
   const [isSending, setIsSending] = useState(false);
   const [sendSuccess, setSendSuccess] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
 
   // Leer información del token
@@ -81,14 +82,25 @@ const TokenExplorerModal: React.FC<TokenExplorerModalProps> = ({ isOpen, onClose
     hash: transferData,
   });
 
-  // Función para copiar al portapapeles
-  const copyToClipboard = async (text: string, item: string) => {
+  // Función para copiar dirección
+  const handleCopyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    } catch (error) {
+      // Error copying address
+    }
+  };
+
+  // Función para copiar cualquier texto al portapapeles
+  const copyToClipboard = async (text: string, itemType: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopiedItem(item);
+      setCopiedItem(itemType);
       setTimeout(() => setCopiedItem(null), 2000);
-    } catch (err) {
-      console.error('Error al copiar:', err);
+    } catch (error) {
+      // Error copying text
     }
   };
 
@@ -302,15 +314,15 @@ const TokenExplorerModal: React.FC<TokenExplorerModalProps> = ({ isOpen, onClose
                     <div className="flex items-center space-x-2">
                       <span className="font-mono text-sm">{shortenAddress(token.tokenAddress)}</span>
                       <button
-                        onClick={() => copyToClipboard(token.tokenAddress, 'contract')}
-                        className={`p-1 rounded transition-colors ${
-                          copiedItem === 'contract' 
-                            ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400' 
-                            : 'hover:bg-muted'
-                        }`}
-                        title={copiedItem === 'contract' ? '¡Copiado!' : 'Copiar dirección completa'}
+                        onClick={() => handleCopyAddress(token.tokenAddress)}
+                        className="p-1 rounded hover:bg-muted transition-colors"
+                        title={copiedAddress === token.tokenAddress ? "¡Copiado!" : "Copiar dirección completa"}
                       >
-                        <Copy className="w-4 h-4" />
+                        {copiedAddress === token.tokenAddress ? (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </button>
                       <Button
                         variant="ghost"

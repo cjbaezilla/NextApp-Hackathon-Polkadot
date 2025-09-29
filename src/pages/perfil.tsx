@@ -64,6 +64,7 @@ const PerfilPage: NextPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [showTokenSuccessMessage, setShowTokenSuccessMessage] = useState(false);
   const [showDAOSuccessMessage, setShowDAOSuccessMessage] = useState(false);
   const [selectedToken, setSelectedToken] = useState<any>(null);
@@ -242,6 +243,17 @@ const PerfilPage: NextPage = () => {
     }
   };
 
+  // Función para copiar dirección
+  const handleCopyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    } catch (error) {
+      // Error copying address
+    }
+  };
+
   // Función para abrir el modal del token
   const openTokenModal = (token: any) => {
     setSelectedToken(token);
@@ -364,11 +376,15 @@ const PerfilPage: NextPage = () => {
           <div className="flex items-center space-x-2 text-xs text-muted-foreground">
             <span className="font-mono text-sm">{shortenDAOAddress(dao.daoAddress)}</span>
             <button
-              onClick={() => navigator.clipboard.writeText(dao.daoAddress)}
+              onClick={() => handleCopyAddress(dao.daoAddress)}
               className="p-1 rounded hover:bg-muted transition-colors"
-              title="Copiar dirección completa"
+              title={copiedAddress === dao.daoAddress ? "¡Copiado!" : "Copiar dirección completa"}
             >
-              <Copy className="w-3 h-3" />
+              {copiedAddress === dao.daoAddress ? (
+                <CheckCircle className="w-3 h-3 text-green-600" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
             </button>
           </div>
           <Button
@@ -431,11 +447,15 @@ const PerfilPage: NextPage = () => {
           <div className="flex items-center space-x-2 text-xs text-muted-foreground">
             <span className="font-mono text-sm">{shortenAddress(token.tokenAddress)}</span>
             <button
-              onClick={() => navigator.clipboard.writeText(token.tokenAddress)}
+              onClick={() => handleCopyAddress(token.tokenAddress)}
               className="p-1 rounded hover:bg-muted transition-colors"
-              title="Copiar dirección completa"
+              title={copiedAddress === token.tokenAddress ? "¡Copiado!" : "Copiar dirección completa"}
             >
-              <Copy className="w-3 h-3" />
+              {copiedAddress === token.tokenAddress ? (
+                <CheckCircle className="w-3 h-3 text-green-600" />
+              ) : (
+                <Copy className="w-3 h-3" />
+              )}
             </button>
           </div>
           <Button
@@ -669,15 +689,15 @@ const PerfilPage: NextPage = () => {
             <div className="flex items-center justify-center space-x-2 text-muted-foreground">
               <span className="font-mono text-sm">{shortenAddress(userInfo.userAddress)}</span>
               <button
-                onClick={() => copyAddress(userInfo.userAddress)}
-                className={`p-1 rounded transition-colors ${
-                  copiedItem === 'address' 
-                    ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400' 
-                    : 'hover:bg-muted'
-                }`}
-                title={copiedItem === 'address' ? '¡Copiado!' : 'Copiar dirección completa'}
+                onClick={() => handleCopyAddress(userInfo.userAddress)}
+                className="p-1 rounded hover:bg-muted transition-colors"
+                title={copiedAddress === userInfo.userAddress ? "¡Copiado!" : "Copiar dirección completa"}
               >
-                <Copy className="w-4 h-4" />
+                {copiedAddress === userInfo.userAddress ? (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
               </button>
             </div>
 
@@ -984,28 +1004,32 @@ const PerfilPage: NextPage = () => {
                     </p>
                   </div>
                 ) : userTokens.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Coins className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                    <h3 className="text-lg font-medium text-foreground mb-2">
-                      {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() 
-                        ? 'No has creado tokens aún'
-                        : 'Este usuario no ha creado tokens aún'
-                      }
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() 
-                        ? 'Crea tu primer token personalizado para comenzar'
-                        : 'Este usuario no ha creado tokens personalizados'
-                      }
-                    </p>
-                    {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() && (
-                      <Button onClick={() => router.push('/crear-token')}>
-                        Crear Token
-                      </Button>
-                    )}
-                  </div>
+                  <Card className="p-8">
+                    <CardContent className="p-0">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Coins className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <h3 className="text-lg font-medium text-foreground mb-2">
+                          {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() 
+                            ? 'No has creado tokens aún'
+                            : 'Este usuario no ha creado tokens aún'
+                          }
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() 
+                            ? 'Crea tu primer token personalizado para comenzar'
+                            : 'Este usuario no ha creado tokens personalizados'
+                          }
+                        </p>
+                        {isConnected && address && address.toLowerCase() === targetUserAddress.toLowerCase() && (
+                          <Button onClick={() => router.push('/crear-token')}>
+                            Crear Token
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 ) : (
                   <div className="space-y-3">
                     {userTokens.map((token, index) => (

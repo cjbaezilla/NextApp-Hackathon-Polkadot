@@ -61,7 +61,7 @@ export const DAOItem: React.FC<DAOItemProps> = ({ daoAddress, index, onDataUpdat
 
   return (
     <Card 
-      className="p-2 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
+      className="p-2 mb-2 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-pointer border hover:border-primary/20 group"
       onClick={onClick}
     >
       <CardContent className="p-0">
